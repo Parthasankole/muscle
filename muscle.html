@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuscleMap — Precision Training Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0b0d;--bg2:#111318;--bg3:#181c24;--bg4:#1e2330;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--text:#e8eaf0;--muted:#7a8099;--cyan:#00d4c8;--cyan2:#00a89e;--red:#ff4757;--gold:#f5a623;--green:#2ecc71;--muscle-idle:rgba(50,70,130,0.45);--muscle-hover:rgba(0,212,200,0.55);--muscle-active:rgba(255,71,87,0.85);--muscle-stroke:rgba(0,212,200,0.28);}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+header{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,11,13,0.93);backdrop-filter:blur(20px);border-bottom:0.5px solid var(--border);padding:0 2rem;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:4px;color:var(--cyan);}
+.logo span{color:var(--red);}
+.header-right{display:flex;align-items:center;gap:1rem;}
+.sel-count{font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--cyan);background:rgba(0,212,200,0.08);border:0.5px solid rgba(0,212,200,0.25);padding:4px 10px;border-radius:4px;}
+.clear-btn{background:transparent;border:0.5px solid var(--border2);color:var(--muted);padding:6px 14px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.8rem;cursor:pointer;transition:all 0.2s;letter-spacing:1px;}
+.clear-btn:hover{border-color:var(--red);color:var(--red);}
+.gender-wrap{padding-top:60px;display:flex;justify-content:center;position:sticky;top:60px;z-index:90;background:var(--bg);border-bottom:0.5px solid var(--border);}
+.gender-btn{flex:0 0 160px;padding:14px 0;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;cursor:pointer;border:none;background:transparent;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.25s;}
+.gender-btn.am{color:var(--cyan);border-bottom-color:var(--cyan);}
+.gender-btn.af{color:var(--red);border-bottom-color:var(--red);}
+.gender-btn:hover{color:var(--text);}
+.main{display:grid;grid-template-columns:1fr 420px;min-height:calc(100vh - 122px);max-width:1380px;margin:0 auto;padding:2rem 1.5rem;gap:2rem;}
+.anatomy-panel{position:sticky;top:122px;align-self:start;background:var(--bg2);border:0.5px solid var(--border);border-radius:16px;padding:1.5rem;overflow:hidden;}
+.panel-label{font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:.8rem;}
+.hint-text{font-size:0.74rem;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;}
+.hint-dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);display:inline-block;flex-shrink:0;}
+.view-toggle{display:flex;gap:8px;margin-bottom:1rem;}
+.view-btn{padding:5px 14px;border-radius:20px;font-size:0.73rem;cursor:pointer;border:0.5px solid var(--border2);background:transparent;color:var(--muted);transition:all 0.2s;font-family:'DM Sans',sans-serif;}
+.view-btn.active{background:var(--bg4);color:var(--text);border-color:rgba(255,255,255,0.25);}
+.svg-container{width:100%;display:flex;justify-content:center;}
+.anatomy-svg{width:100%;max-width:400px;cursor:default;}
+.muscle-group{cursor:pointer;}
+.muscle-group path,.muscle-group ellipse,.muscle-group circle,.muscle-group polygon,.muscle-group rect{fill:var(--muscle-idle);stroke:var(--muscle-stroke);stroke-width:0.6;transition:fill 0.18s,stroke 0.18s;}
+.muscle-group:hover path,.muscle-group:hover ellipse,.muscle-group:hover circle,.muscle-group:hover polygon,.muscle-group:hover rect{fill:var(--muscle-hover);stroke:var(--cyan);stroke-width:1.1;}
+.muscle-group.selected path,.muscle-group.selected ellipse,.muscle-group.selected circle,.muscle-group.selected polygon,.muscle-group.selected rect{fill:var(--muscle-active);stroke:var(--red);stroke-width:1.3;}
+.body-base{fill:#182040;stroke:rgba(255,255,255,0.09);stroke-width:1;}
+.label-line{stroke:rgba(255,255,255,0.18);stroke-width:0.5;}
+.muscle-label{font-family:'JetBrains Mono',monospace;font-size:7px;fill:rgba(255,255,255,0.4);pointer-events:none;}
+.tags-area{display:flex;flex-wrap:wrap;gap:6px;margin-top:1rem;min-height:24px;}
+.tag{display:inline-flex;align-items:center;gap:6px;background:rgba(255,71,87,0.12);border:0.5px solid rgba(255,71,87,0.38);border-radius:4px;padding:3px 9px;font-size:0.72rem;color:var(--red);font-family:'JetBrains Mono',monospace;}
+.tag button{background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;line-height:1;padding:0;}
+.exercise-panel{min-height:600px;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5rem 2rem;text-align:center;color:var(--muted);border:1px dashed var(--border2);border-radius:16px;min-height:380px;}
+.empty-icon{font-size:3rem;margin-bottom:1rem;opacity:.25;}
+.empty-state h3{font-size:1rem;font-weight:400;margin-bottom:.5rem;}
+.empty-state p{font-size:0.78rem;max-width:220px;line-height:1.6;}
+.ex-type-toggle{display:flex;gap:8px;margin-bottom:1.4rem;}
+.ex-type-btn{flex:1;padding:10px;text-align:center;font-size:0.8rem;cursor:pointer;border-radius:8px;border:0.5px solid var(--border2);background:transparent;color:var(--muted);transition:all 0.22s;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.5px;}
+.ex-type-btn.active{background:var(--bg4);color:var(--text);border-color:var(--cyan);}
+.exercise-cards{display:flex;flex-direction:column;gap:.9rem;}
+.ex-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color 0.2s,transform 0.15s;}
+.ex-card:hover{border-color:var(--border2);transform:translateY(-1px);}
+.ex-card.open{border-color:var(--cyan2);}
+.ex-card-header{display:flex;align-items:center;gap:1rem;padding:.95rem 1.1rem;}
+.ex-num{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--border2);min-width:28px;line-height:1;transition:color 0.2s;}
+.ex-card.open .ex-num{color:var(--cyan);}
+.ex-info{flex:1;}
+.ex-name{font-weight:600;font-size:.93rem;margin-bottom:3px;transition:color 0.2s;}
+.ex-card.open .ex-name{color:var(--cyan);}
+.ex-meta{display:flex;gap:7px;flex-wrap:wrap;}
+.ex-badge{font-size:0.62rem;padding:2px 7px;border-radius:3px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.5px;}
+.badge-bw{background:rgba(46,204,113,0.1);color:var(--green);border:0.5px solid rgba(46,204,113,0.28);}
+.badge-gym{background:rgba(245,166,35,0.1);color:var(--gold);border:0.5px solid rgba(245,166,35,0.28);}
+.badge-primary{background:rgba(255,71,87,0.09);color:var(--red);border:0.5px solid rgba(255,71,87,0.22);}
+.ex-chevron{color:var(--muted);font-size:.9rem;transition:transform 0.25s;}
+.ex-card.open .ex-chevron{transform:rotate(180deg);color:var(--cyan);}
+.ex-detail{max-height:0;overflow:hidden;transition:max-height 0.4s ease;border-top:0.5px solid transparent;}
+.ex-card.open .ex-detail{max-height:1400px;border-top-color:var(--border);}
+.ex-detail-inner{padding:1.1rem;}
+.sets-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:.9rem;}
+.sets-item{background:var(--bg4);border-radius:6px;padding:8px;text-align:center;}
+.sets-label{font-size:0.62rem;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;}
+.sets-val{font-family:'JetBrains Mono',monospace;font-size:0.88rem;color:var(--text);}
+.steps-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.8rem;}
+.step-card{background:var(--bg3);border-radius:7px;padding:.8rem;border:0.5px solid var(--border);}
+.step-num{font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--cyan);letter-spacing:1px;margin-bottom:5px;}
+.step-text{font-size:0.78rem;color:var(--muted);line-height:1.6;}
+.step-text strong{color:var(--text);font-weight:500;}
+.muscles-hit{font-size:0.73rem;color:var(--muted);}
+.muscles-hit span{color:var(--cyan);font-weight:500;}
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--text);margin-bottom:1.1rem;display:flex;align-items:center;gap:10px;}
+.section-title::after{content:'';flex:1;height:0.5px;background:var(--border);}
+#tooltip{position:fixed;z-index:999;background:var(--bg4);border:0.5px solid var(--border2);border-radius:5px;padding:5px 11px;font-size:0.72rem;color:var(--text);font-family:'JetBrains Mono',monospace;pointer-events:none;opacity:0;transition:opacity 0.15s;white-space:nowrap;}
+@keyframes pulseRed{0%,100%{filter:drop-shadow(0 0 2px rgba(255,71,87,.3));}50%{filter:drop-shadow(0 0 7px rgba(255,71,87,.85));}}
+.muscle-group.selected{animation:pulseRed 2.2s ease infinite;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.ex-card{animation:fadeUp 0.3s ease both;}
+@media(max-width:860px){.main{grid-template-columns:1fr;}.anatomy-panel{position:static;}}
+</style>
+</head>
+<body>
+<div id="tooltip"></div>
+<header>
+  <div class="logo">Muscle<span>Map</span></div>
+  <div class="header-right">
+    <div class="sel-count" id="selCount">0 MUSCLES</div>
+    <button class="clear-btn" onclick="clearAll()">CLEAR</button>
+  </div>
+</header>
+<div class="gender-wrap">
+  <button class="gender-btn am" id="btnMale" onclick="setGender('male')">&#9794; MALE</button>
+  <button class="gender-btn" id="btnFemale" onclick="setGender('female')">&#9792; FEMALE</button>
+</div>
+<div class="main">
+  <div class="anatomy-panel">
+    <div class="panel-label">// ANATOMICAL ATLAS</div>
+    <div class="hint-text"><span class="hint-dot"></span> Click muscle groups to load exercises. Multi-select supported.</div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="btnFront" onclick="setView('front')">ANTERIOR</button>
+      <button class="view-btn" id="btnBack" onclick="setView('back')">POSTERIOR</button>
+    </div>
+    <div class="svg-container" id="svgContainer"></div>
+    <div class="tags-area" id="tagsArea"></div>
+  </div>
+  <div class="exercise-panel" id="exercisePanel">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">&#9711;</div>
+      <h3>No muscles selected</h3>
+      <p>Click on any muscle in the anatomy diagram to load targeted exercises</p>
+    </div>
+    <div id="exerciseContent" style="display:none">
+      <div class="section-title" id="exTitle">EXERCISES</div>
+      <div class="ex-type-toggle">
+        <button class="ex-type-btn active" id="bwBtn" onclick="setExType('bodyweight')">&#9649; BODYWEIGHT</button>
+        <button class="ex-type-btn" id="gymBtn" onclick="setExType('gym')">&#9640; GYM / WEIGHTS</button>
+      </div>
+      <div class="exercise-cards" id="exerciseCards"></div>
+    </div>
+  </div>
+</div>
+<script>
+const MUSCLE_NAMES={chest:"Pectoralis Major",biceps:"Biceps Brachii",triceps:"Triceps Brachii",shoulders:"Deltoids",back:"Lats / Back",abs:"Abdominals",quads:"Quadriceps",hamstrings:"Hamstrings",glutes:"Gluteus Maximus",calves:"Gastrocnemius",traps:"Trapezius",forearms:"Forearms"};
+
+const EX={
+chest:{
+bodyweight:[
+{name:"Push-Up",primary:"Pectoralis Major",sets:"3-4",reps:"10-20",rest:"60s",steps:[{t:"Setup",b:"<strong>Hands</strong> slightly wider than shoulder-width. Body forms a straight line heel to head."},{t:"Brace Core",b:"Engage abs and glutes before descending. <strong>Don't let hips sag</strong> or pike."},{t:"Lower",b:"Lower chest toward floor over <strong>2 seconds</strong>, elbows at 45° from torso."},{t:"Press",b:"<strong>Drive hands</strong> into floor explosively. Fully extend arms at top."}],muscles:"Pecs, Anterior Delt, Triceps"},
+{name:"Wide Push-Up",primary:"Pectoralis Major (Outer)",sets:"3",reps:"8-15",rest:"60s",steps:[{t:"Hand Position",b:"Hands placed <strong>1.5× shoulder-width</strong> apart, fingers angled outward 30°."},{t:"Depth",b:"Lower until chest is <strong>1 inch from floor</strong>. Controlled descent."},{t:"Squeeze",b:"Think about <strong>squeezing chest together</strong> at the top rather than pushing away."},{t:"Breathe",b:"<strong>Inhale</strong> on the way down, <strong>exhale</strong> as you press up."}],muscles:"Outer Pecs, Deltoids, Triceps"},
+{name:"Diamond Push-Up",primary:"Pectoralis Minor + Triceps",sets:"3",reps:"6-12",rest:"60s",steps:[{t:"Diamond Grip",b:"Form a diamond with <strong>thumbs and index fingers</strong> directly under sternum."},{t:"Elbows In",b:"Keep elbows close to ribs as you lower — <strong>don't let them flare</strong>."},{t:"Range",b:"Lower until nose nearly <strong>touches your hands</strong>. Full range every rep."},{t:"Contract",b:"Squeeze triceps and inner chest <strong>hard at the top lockout</strong>."}],muscles:"Inner Pecs, Triceps, Deltoids"},
+{name:"Archer Push-Up",primary:"Unilateral Pectoralis",sets:"3",reps:"6-8 each",rest:"75s",steps:[{t:"Wide Stance",b:"Hands 2× shoulder-width. <strong>One arm fully extended</strong>, one will bend."},{t:"Shift",b:"Shift bodyweight toward the bending arm. Straight arm stays extended."},{t:"Lower",b:"Lower until working elbow hits 90°. Feel the <strong>deep chest stretch</strong>."},{t:"Alternate",b:"Return to centre and shift to the <strong>other side</strong> for equal reps."}],muscles:"Pecs (unilateral), Triceps, Delt"},
+{name:"Pike Push-Up",primary:"Upper Chest + Shoulders",sets:"3",reps:"8-12",rest:"60s",steps:[{t:"Pike High",b:"Hips raised, body in inverted V. <strong>Head between arms</strong>."},{t:"Lower",b:"Bend elbows, lower head toward floor <strong>between your hands</strong>."},{t:"Press",b:"Extend arms back to start. Focus on <strong>elbow lockout</strong>."},{t:"Progress",b:"Elevate feet on chair to <strong>increase difficulty</strong>."}],muscles:"Upper Pecs, Anterior Delt, Triceps"}
+],
+gym:[
+{name:"Barbell Bench Press",primary:"Pectoralis Major",sets:"4",reps:"6-10",rest:"2-3min",steps:[{t:"Setup",b:"Lie on bench, feet flat, <strong>slightly outside shoulder-width</strong> grip. Natural back arch."},{t:"Unrack",b:"Bar directly above mid-chest. <strong>Lats squeezed</strong> to protect shoulders."},{t:"Lower",b:"Control bar down to lower chest over 2-3 sec. <strong>Elbows 45-75°</strong> from torso."},{t:"Drive",b:"Press bar up with max force. <strong>Drive legs into floor</strong> as you push."}],muscles:"Pecs, Anterior Delt, Triceps"},
+{name:"Dumbbell Chest Fly",primary:"Pectoralis (Stretch)",sets:"3",reps:"10-15",rest:"90s",steps:[{t:"Start",b:"Dumbbells above chest, <strong>slight elbow bend</strong>, palms facing each other."},{t:"Open Arc",b:"Lower arms in wide arc until <strong>deep chest stretch</strong>. Never past parallel."},{t:"Squeeze",b:"Reverse arc back up, <strong>squeeze pecs hard at top</strong>. Dumbbells don't touch."},{t:"Control",b:"Keep weight <strong>moderate</strong> — this is a stretch movement, not a strength move."}],muscles:"Pecs, Anterior Delt"},
+{name:"Cable Crossover",primary:"Pectoralis (Full)",sets:"3",reps:"12-15",rest:"60s",steps:[{t:"High Cables",b:"Pulleys at highest position. Stand centred, <strong>one step forward</strong>."},{t:"Pull Down",b:"Pull handles downward and inward in an arc, <strong>crossing hands</strong> at bottom."},{t:"Squeeze",b:"Pause with hands crossed. <strong>Hard 1-second contraction</strong> in inner chest."},{t:"Return",b:"Slowly return to start with <strong>full eccentric control</strong>."}],muscles:"Full Pecs, especially inner fibers"},
+{name:"Incline DB Press",primary:"Upper Pectoralis",sets:"4",reps:"8-12",rest:"90s",steps:[{t:"Angle",b:"Bench at <strong>30-45°</strong>. Higher = more shoulder; lower = more upper chest."},{t:"Grip",b:"Dumbbells at shoulder, elbows at <strong>70° from torso</strong>."},{t:"Press",b:"Press up and <strong>slightly inward</strong>, fully extending arms."},{t:"Lower",b:"Control back down 2 sec. <strong>Feel the upper chest stretch</strong>."}],muscles:"Upper Pecs, Anterior Delt, Triceps"},
+{name:"Chest Dip",primary:"Lower Pectoralis + Triceps",sets:"3-4",reps:"8-15",rest:"90s",steps:[{t:"Lean Forward",b:"On parallel bars, <strong>lean torso forward 30°</strong> to shift load to chest."},{t:"Descend",b:"Lower until upper arms are <strong>parallel to floor</strong>. Feel chest stretch."},{t:"Drive Up",b:"Push through palms, straighten arms. <strong>Don't aggressively lock out</strong>."},{t:"Overload",b:"When 15 reps is easy, <strong>add a weight belt</strong>."}],muscles:"Lower Pecs, Triceps, Anterior Delt"}
+]},
+biceps:{
+bodyweight:[
+{name:"Chin-Up",primary:"Biceps Brachii",sets:"3-4",reps:"6-12",rest:"90s",steps:[{t:"Grip",b:"<strong>Underhand grip</strong>, shoulder-width or narrower. Arms fully extended."},{t:"Dead Hang",b:"Start from full hang, <strong>shoulders packed down</strong>. No swinging."},{t:"Pull",b:"Drive elbows down and back. Lead with <strong>chest toward the bar</strong>."},{t:"Top",b:"Chin clears bar. Hold <strong>1 second</strong>, then lower with full control."}],muscles:"Biceps, Brachialis, Lats"},
+{name:"Inverted Row (Supinated)",primary:"Biceps + Mid Back",sets:"3",reps:"10-15",rest:"60s",steps:[{t:"Under Bar",b:"Lie under waist-height bar. <strong>Underhand grip</strong>, body straight."},{t:"Pull",b:"Pull chest to bar, keeping body rigid. <strong>Lead elbows behind you</strong>."},{t:"Squeeze",b:"<strong>Squeeze biceps and back</strong> at the top for 1 second."},{t:"Difficulty",b:"Raise bar to reduce difficulty, lower to <strong>increase challenge</strong>."}],muscles:"Biceps, Rear Delt, Rhomboids"},
+{name:"Negative Chin-Up",primary:"Eccentric Biceps",sets:"3",reps:"5-8 slow",rest:"90s",steps:[{t:"Jump Up",b:"Use a chair or jump to get <strong>chin over bar</strong>."},{t:"Lower Slowly",b:"Take <strong>5-8 seconds</strong> to lower yourself to full arm extension."},{t:"Control",b:"Maximum tension in biceps during the <strong>entire descent is the point</strong>."},{t:"Reset",b:"Jump back up. <strong>Never drop</strong> — the slow eccentric is the exercise."}],muscles:"Biceps, Brachialis (eccentric)"},
+{name:"Towel Curl",primary:"Biceps (Improvised)",sets:"3",reps:"12-15",rest:"60s",steps:[{t:"Setup",b:"Loop a towel under a heavy stable object. <strong>Hold both ends</strong>."},{t:"Lean Back",b:"Lean back 45°, arms extended, <strong>towel taut throughout</strong>."},{t:"Curl",b:"Curl hands toward shoulders, bringing body upright."},{t:"Lower",b:"Lean back slowly for a <strong>full eccentric</strong>. Control it."}],muscles:"Biceps, Brachioradialis"},
+{name:"Doorframe Curl (Isometric)",primary:"Biceps",sets:"3",reps:"30s hold",rest:"45s",steps:[{t:"Grip Frame",b:"Stand in doorway, grip the frame at <strong>elbow height, underhand</strong>."},{t:"Curl",b:"Pull yourself toward the frame as if doing a normal curl."},{t:"Hold",b:"Hold the <strong>maximum contraction position for 30 seconds</strong>."},{t:"Vary",b:"Vary arm angle each set to hit <strong>different portions of the range</strong>."}],muscles:"Biceps, Brachialis"}
+],
+gym:[
+{name:"Barbell Curl",primary:"Biceps Brachii",sets:"4",reps:"8-12",rest:"90s",steps:[{t:"Stance",b:"Stand upright, <strong>underhand shoulder-width grip</strong>. Elbows locked at sides."},{t:"Curl Up",b:"Curl bar to chin. <strong>Supinate wrist at the top</strong> for peak contraction."},{t:"Hold",b:"Peak contraction at top. <strong>1-second pause</strong>."},{t:"Lower",b:"Take <strong>3 seconds to lower</strong>. Don't drop the weight."}],muscles:"Biceps, Brachialis, Brachioradialis"},
+{name:"Hammer Curl",primary:"Brachialis + Brachioradialis",sets:"3",reps:"10-14",rest:"75s",steps:[{t:"Neutral Grip",b:"Dumbbells in <strong>neutral grip</strong> (thumbs up, palms face each other)."},{t:"Curl",b:"Curl one dumbbell at a time or both together. <strong>No wrist rotation</strong>."},{t:"Full Range",b:"Full extension to as high as possible <strong>without body sway</strong>."},{t:"Target",b:"Brachialis sits under the bicep — building it <strong>pushes the bicep higher</strong>."}],muscles:"Brachialis, Brachioradialis, Biceps"},
+{name:"Cable Curl",primary:"Biceps (Constant Tension)",sets:"3",reps:"12-15",rest:"60s",steps:[{t:"Low Pulley",b:"Straight or EZ bar on <strong>low cable</strong>. Stand close."},{t:"Curl",b:"Curl toward chin, elbows stationary. <strong>Cable stays taut the whole set</strong>."},{t:"Advantage",b:"Cables provide resistance at <strong>full extension</strong> — hits the stretched position."},{t:"Return",b:"Slow <strong>3-second descent</strong>. Feel the stretch at bottom."}],muscles:"Biceps (full range, constant tension)"},
+{name:"Incline DB Curl",primary:"Long Head of Biceps",sets:"3",reps:"10-12",rest:"75s",steps:[{t:"Setup",b:"Bench at 45-60°. Arms hang <strong>behind torso</strong> — this stretches the long head."},{t:"Curl",b:"Curl upward without swinging. <strong>The stretched start is the benefit</strong>."},{t:"Supinate",b:"Rotate wrist <strong>outward at top</strong> to peak-contract the long head."},{t:"Why",b:"Long head gives the <strong>bicep peak</strong> — premier exercise for that."}],muscles:"Long Head of Biceps"},
+{name:"Preacher Curl",primary:"Short Head of Biceps",sets:"3",reps:"10-12",rest:"75s",steps:[{t:"Position",b:"Arm fully extended on <strong>preacher bench pad</strong>. Back of arm fully contacts pad."},{t:"Curl",b:"Curl up strictly. Don't lean or swing. <strong>Strict form only</strong>."},{t:"Top",b:"Stop just before vertical — going past reduces tension. <strong>Squeeze hard</strong>."},{t:"Lower",b:"Control descent fully. The <strong>bottom stretched position</strong> drives growth."}],muscles:"Short Head of Biceps"}
+]},
+triceps:{
+bodyweight:[
+{name:"Diamond Push-Up",primary:"Triceps Brachii",sets:"3-4",reps:"8-15",rest:"60s",steps:[{t:"Form Diamond",b:"Index fingers and thumbs form a diamond <strong>under your sternum</strong>."},{t:"Elbows Back",b:"As you lower, elbows go <strong>back alongside ribcage</strong>, not out."},{t:"Range",b:"Lower until chest lightly contacts hands. <strong>Full range every rep</strong>."},{t:"Lockout",b:"<strong>Fully extend arms at top</strong> — that final inch is the tricep contraction."}],muscles:"All 3 Tricep heads, Inner Pecs"},
+{name:"Tricep Dip (Chair)",primary:"Triceps",sets:"3-4",reps:"10-20",rest:"60s",steps:[{t:"Grip",b:"Hands on chair edge, fingers forward. Legs <strong>extended or bent</strong>."},{t:"Lower",b:"Lower until elbows at <strong>90°</strong>. Keep back close to chair edge."},{t:"90° Rule",b:"Stopping at 90° <strong>protects shoulders</strong>. Going deeper adds risk without benefit."},{t:"Press Up",b:"Push through palms, straighten arms. <strong>Squeeze triceps hard</strong> at top."}],muscles:"Triceps (all heads), Anterior Delt"},
+{name:"Sphinx Push-Up",primary:"Triceps Long Head",sets:"3",reps:"8-12",rest:"75s",steps:[{t:"Start on Forearms",b:"Begin in <strong>forearm plank</strong>. Elbows under shoulders."},{t:"Push Up",b:"Push through hands, <strong>extending elbows</strong> to full arm extension."},{t:"Lower",b:"Return to forearms slowly. This is an <strong>overhead extension movement</strong>."},{t:"Why",b:"Long head is most active when shoulder is extended — <strong>this nails it</strong>."}],muscles:"Triceps Long Head, Deltoids"},
+{name:"Pike Push-Up",primary:"Triceps + Shoulders",sets:"3",reps:"8-12",rest:"60s",steps:[{t:"Pike",b:"Hips raised, inverted V. <strong>Head between arms</strong>."},{t:"Lower",b:"Bend elbows, lower head toward floor. <strong>Elbows angle backward</strong>."},{t:"Press",b:"Extend arms. Focus on <strong>elbow lockout</strong> for tricep activation."},{t:"Progress",b:"Elevate feet for harder version; books under hands for <strong>greater ROM</strong>."}],muscles:"Triceps, Deltoids, Upper Chest"},
+{name:"Narrow Plank Hold",primary:"Tricep Isometric",sets:"3",reps:"30-45s",rest:"45s",steps:[{t:"Position",b:"Full push-up plank, hands <strong>directly under shoulders</strong>, close together."},{t:"Slight Bend",b:"Let elbows have a <strong>barely-perceptible 5-10° bend</strong>. This activates triceps isometrically."},{t:"Hold",b:"Hold 30-45 sec. Feel the <strong>burn in the back of arms</strong>."},{t:"Note",b:"Isometric training builds <strong>tendon strength and muscular endurance</strong>."}],muscles:"Triceps Long Head, Core"}
+],
+gym:[
+{name:"Close-Grip Bench Press",primary:"Triceps + Inner Chest",sets:"4",reps:"6-10",rest:"2min",steps:[{t:"Grip",b:"<strong>Shoulder-width grip</strong> — not too narrow. Elbows tuck in at 45°."},{t:"Path",b:"Lower bar to <strong>lower chest</strong>. Elbows at 45° max from torso."},{t:"Drive",b:"Press explosively. Think about <strong>pushing elbows straight</strong>."},{t:"Lockout",b:"<strong>Fully lock out at top</strong> — that's full tricep contraction."}],muscles:"Triceps, Inner Pecs, Deltoids"},
+{name:"Overhead Tricep Extension",primary:"Triceps Long Head",sets:"3",reps:"10-14",rest:"75s",steps:[{t:"Setup",b:"One heavy dumbbell held <strong>overhead with both hands</strong>, elbows pointing up."},{t:"Lower",b:"Bend elbows, lower dumbbell behind head. Feel the <strong>deep long-head stretch</strong>."},{t:"Extend",b:"Drive dumbbell overhead, fully extending arms. <strong>Don't swing</strong>."},{t:"Why",b:"Only when shoulder is flexed does the <strong>long head fully stretch and maximally contract</strong>."}],muscles:"Long Head of Triceps"},
+{name:"Tricep Pushdown",primary:"Lateral + Medial Heads",sets:"3",reps:"12-16",rest:"60s",steps:[{t:"High Cable",b:"Rope or straight bar on <strong>high pulley</strong>. Elbows locked at sides."},{t:"Push Down",b:"Drive handles down until arms are <strong>fully extended</strong>. Elbows never move."},{t:"Rope Tip",b:"Spread rope ends apart at bottom to <strong>maximally contract the lateral head</strong>."},{t:"Return",b:"Allow handles back up slowly. <strong>Resist the weight on the way up</strong>."}],muscles:"Lateral + Medial Heads of Triceps"},
+{name:"Skull Crusher",primary:"Triceps (All Heads)",sets:"3",reps:"10-12",rest:"90s",steps:[{t:"Setup",b:"Lie on bench. EZ-bar held above chest at <strong>full arm extension</strong>."},{t:"Lower",b:"Hinge only at elbows, lower bar toward <strong>forehead or just above</strong>. Elbows stay still."},{t:"Extend",b:"Drive bar back up. <strong>Squeeze hard at full extension</strong>."},{t:"Safety",b:"Keep weight moderate. <strong>A spotter or wrist wraps</strong> are recommended."}],muscles:"All Tricep Heads"},
+{name:"Tricep Kickback",primary:"Lateral Head",sets:"3",reps:"12-15",rest:"60s",steps:[{t:"Hinge",b:"Lean forward at hip, back flat. <strong>Upper arm parallel to ground</strong>, elbow 90°."},{t:"Kick Back",b:"Extend forearm back until arm is <strong>fully straight and parallel to floor</strong>."},{t:"Pause",b:"<strong>Hold 1 second</strong> at full extension. Squeeze that lateral head."},{t:"Weight",b:"Use <strong>lighter weight</strong> for strict form — momentum kills this exercise."}],muscles:"Lateral Head of Triceps"}
+]},
+shoulders:{
+bodyweight:[
+{name:"Pike Push-Up",primary:"Anterior Deltoid",sets:"3-4",reps:"8-12",rest:"60s",steps:[{t:"Pike High",b:"Get hips as high as possible — more vertical body means <strong>more shoulder load</strong>."},{t:"Head Between",b:"Head passes between arms as you lower, <strong>not outside them</strong>."},{t:"Lower",b:"Lower until <strong>head nearly touches floor</strong>. Elbows go backward."},{t:"Elevate Feet",b:"Feet elevated on a chair = <strong>significantly harder</strong> and more shoulder-dominant."}],muscles:"Anterior Delt, Triceps, Upper Pecs"},
+{name:"Handstand Hold (Wall)",primary:"Full Deltoid",sets:"3",reps:"15-30s",rest:"90s",steps:[{t:"Kick Up",b:"Kick feet up to wall. Hands <strong>shoulder-width</strong>, 6 inches from wall."},{t:"Press Tall",b:"<strong>Actively push floor away</strong> — don't just hang. Engaged shoulders."},{t:"Core",b:"Squeeze abs and glutes. <strong>Don't let lower back arch</strong>."},{t:"Hold",b:"Hold 15-30s. Progress toward <strong>freestanding over time</strong>."}],muscles:"Full Deltoid (all 3 heads), Triceps, Core"},
+{name:"Lateral Raise (Bottles/Band)",primary:"Medial Deltoid",sets:"3",reps:"12-20",rest:"45s",steps:[{t:"Start",b:"Stand upright, arms at sides with <strong>slight elbow bend</strong>."},{t:"Raise",b:"Lift arms to shoulder height to the sides. <strong>Lead with elbows not hands</strong>."},{t:"Pinky High",b:"Tilt pinky slightly higher than thumb — <strong>better medial delt engagement</strong>."},{t:"Lower Slow",b:"Take <strong>3 seconds to lower</strong>. The eccentric builds strength."}],muscles:"Medial Deltoid, Supraspinatus"},
+{name:"Prone Y-T-W Raise",primary:"Posterior Delt + Rotator Cuff",sets:"3",reps:"10-12 each",rest:"45s",steps:[{t:"Lie Prone",b:"Face down, arms overhead in a <strong>Y shape</strong>. Lift arms."},{t:"T Shape",b:"Move arms to sides — <strong>T shape</strong>. Hold 1 second."},{t:"W Shape",b:"Bend elbows, pull toward head — <strong>W shape</strong>. Squeeze shoulder blades."},{t:"Why",b:"Bulletproofs the <strong>rotator cuff and rear delt</strong> — most neglected muscles."}],muscles:"Posterior Delt, Rotator Cuff, Rhomboids"},
+{name:"Band Pull-Apart",primary:"Posterior Delt",sets:"3-4",reps:"15-25",rest:"30s",steps:[{t:"Hold Band",b:"Resistance band at arm's length, <strong>overhand grip shoulder-width</strong>."},{t:"Pull Apart",b:"Pull band until it touches chest. <strong>Squeeze shoulder blades together</strong>."},{t:"Control",b:"Return slowly to start. <strong>Don't let elbows bend</strong> during the movement."},{t:"Bands",b:"Use a <strong>light band</strong> — form degrades fast with heavy tension here."}],muscles:"Posterior Delt, Rhomboids, Rear Delt"}
+],
+gym:[
+{name:"Overhead Barbell Press",primary:"Anterior + Medial Delt",sets:"4",reps:"6-10",rest:"2min",steps:[{t:"Grip",b:"Slightly outside shoulder-width. Bar rests on <strong>upper chest/front delts</strong>."},{t:"Press",b:"Press bar straight up. As it passes your forehead, <strong>push head slightly forward</strong>."},{t:"Lockout",b:"Arms fully extended overhead. <strong>Bar should be over your ears</strong>, not in front."},{t:"Core",b:"<strong>Squeeze abs hard</strong> — prevents lower back arch under heavy load."}],muscles:"Anterior + Medial Delt, Triceps, Upper Traps"},
+{name:"DB Lateral Raise",primary:"Medial Deltoid",sets:"4",reps:"12-20",rest:"60s",steps:[{t:"Slight Lean",b:"Lean torso forward <strong>10-15°</strong> — shifts load to medial delt."},{t:"Lead Elbows",b:"Raise elbows to shoulder height. <strong>Lead with elbows, not hands</strong>."},{t:"Pinky High",b:"Internally rotate slightly — <strong>pinky higher than thumb at the top</strong>."},{t:"Cheat Reps",b:"Slight momentum on last 2-3 reps to go <strong>beyond failure safely</strong>."}],muscles:"Medial Deltoid"},
+{name:"Rear Delt Fly",primary:"Posterior Deltoid",sets:"3",reps:"12-15",rest:"60s",steps:[{t:"Hinge",b:"Bend at hip, torso <strong>roughly parallel to floor</strong>. Arms hanging."},{t:"Fly Out",b:"Raise arms to sides, leading with elbows. <strong>Slight elbow bend</strong>."},{t:"Squeeze",b:"Squeeze shoulder blades at top. <strong>Light weight, strict form</strong>."},{t:"Cable Option",b:"Cables maintain <strong>constant tension</strong> — superior to dumbbells here."}],muscles:"Posterior Delt, Rhomboids, Teres Minor"},
+{name:"Arnold Press",primary:"All 3 Deltoid Heads",sets:"3",reps:"10-12",rest:"75s",steps:[{t:"Start",b:"Dumbbells at chin, <strong>palms facing you</strong> (reverse curl position)."},{t:"Rotate Out",b:"As you press, <strong>rotate palms forward</strong> to traditional press grip."},{t:"Press",b:"Complete full overhead press. Rotate back on the way down. <strong>The rotation is the magic</strong>."},{t:"Why",b:"Rotation fires all 3 delt heads at <strong>different phases of the movement</strong>."}],muscles:"All 3 Deltoid Heads"},
+{name:"Face Pull",primary:"Rear Delt + Rotator Cuff",sets:"3",reps:"15-20",rest:"60s",steps:[{t:"Height",b:"Set cable to <strong>face height or slightly above</strong>. Rope attachment."},{t:"Pull to Face",b:"Pull rope toward face, <strong>elbows flaring out and back</strong>."},{t:"External Rotate",b:"At end, externally rotate so hands end <strong>beside ears, pointing up</strong>. Pause 1 sec."},{t:"Why",b:"<strong>Essential for shoulder health</strong> — counteracts all the internal rotation from pressing."}],muscles:"Posterior Delt, External Rotators, Rhomboids"}
+]},
+back:{
+bodyweight:[
+{name:"Pull-Up (Overhand)",primary:"Latissimus Dorsi",sets:"3-4",reps:"5-12",rest:"90s",steps:[{t:"Dead Hang",b:"Full extension, shoulder-width <strong>overhand grip</strong>. Pack shoulder blades down."},{t:"Initiate with Back",b:"Think 'pull elbows to hips' not 'pull hands to chin.' <strong>Lats fire first</strong>."},{t:"Rise",b:"Rise until chin clears bar. Chest slightly <strong>angled toward bar</strong>."},{t:"Lower",b:"Lower over 2-3 sec back to dead hang. <strong>Full range every rep</strong>."}],muscles:"Lats, Biceps, Rhomboids, Lower Traps"},
+{name:"Inverted Row",primary:"Mid Back + Lats",sets:"3-4",reps:"8-15",rest:"75s",steps:[{t:"Under Bar",b:"Lie under a bar or table. <strong>Overhand grip</strong>, body straight heel to head."},{t:"Row Up",b:"Pull chest to bar, elbows drive <strong>toward hips</strong>. Squeeze shoulder blades at top."},{t:"Difficulty",b:"More horizontal body = <strong>harder</strong>. Bend knees to reduce difficulty."},{t:"Pause",b:"Hold top position 1 sec to <strong>eliminate momentum</strong>."}],muscles:"Mid Back, Rhomboids, Rear Delt, Biceps"},
+{name:"Superman Hold",primary:"Erector Spinae",sets:"3-4",reps:"10-15 or 30s",rest:"60s",steps:[{t:"Prone",b:"Lie face down, arms extended overhead. <strong>Squeeze glutes first</strong>."},{t:"Lift",b:"Raise arms AND legs simultaneously. <strong>No jerking</strong> — smooth movement."},{t:"Hold",b:"Hold 2-3 sec at top. Feel <strong>entire posterior chain engaged</strong>."},{t:"Lower",b:"Lower gently — don't drop. Repeat for reps or <strong>hold for time</strong>."}],muscles:"Erector Spinae, Glutes, Posterior Delt"},
+{name:"Archer Row (Towel)",primary:"Unilateral Lats",sets:"3",reps:"8-12 per side",rest:"60s",steps:[{t:"Single Arm",b:"Towel looped around a pole. <strong>One hand only</strong>, other behind back."},{t:"Row",b:"Row body toward the pole with single-arm motion."},{t:"Squeeze",b:"<strong>Squeeze lat hard at end range</strong>. Think 'tuck elbow into hip pocket.'"},{t:"Lower",b:"Extend back slowly. <strong>Greater ROM</strong> than two-arm version."}],muscles:"Lats (unilateral), Biceps, Rhomboids"},
+{name:"Good Morning (BW)",primary:"Spinal Erectors",sets:"3",reps:"12-15",rest:"30s",steps:[{t:"Stand",b:"Hands behind head, feet hip-width. <strong>Slight knee bend</strong>."},{t:"Hinge",b:"Push hips back, tilting torso forward until <strong>parallel to floor</strong>."},{t:"Extend",b:"Return by contracting <strong>lower back and glutes</strong> — not momentum."},{t:"Why",b:"Activates and strengthens erectors, improving <strong>posture and spinal stability</strong>."}],muscles:"Erector Spinae, Hamstrings, Glutes"}
+],
+gym:[
+{name:"Deadlift",primary:"Full Posterior Chain",sets:"4",reps:"4-8",rest:"3min",steps:[{t:"Setup",b:"Bar over mid-foot. Hip-width stance. <strong>Hinge at hips</strong>, grab bar overhand."},{t:"Tension",b:"Take slack out of bar. <strong>Chest up, lats engaged</strong> — imagine protecting armpits."},{t:"Drive",b:"Push floor away. Bar stays <strong>dragging up shins</strong>. Hips and shoulders rise together."},{t:"Lockout",b:"Stand fully upright. <strong>Don't hyperextend</strong> the lower back at the top."}],muscles:"Entire Posterior Chain, Lats, Traps, Glutes, Hamstrings"},
+{name:"Barbell Row",primary:"Lats + Mid Back",sets:"4",reps:"8-10",rest:"90s",steps:[{t:"Hinge",b:"Torso <strong>roughly 45° from floor</strong>. Overhand grip just outside shoulder-width."},{t:"Row to Hip",b:"Pull bar toward <strong>lower abs/hips</strong> — NOT chest. Elbows brush ribs."},{t:"Squeeze",b:"At contact, <strong>squeeze shoulder blades hard</strong>. 1-second pause."},{t:"Lower",b:"Return bar to full extension over <strong>2-3 seconds</strong>."}],muscles:"Lats, Rhomboids, Lower Traps, Biceps"},
+{name:"Seated Cable Row",primary:"Mid Back + Lats",sets:"3",reps:"10-14",rest:"75s",steps:[{t:"Setup",b:"Sit upright, <strong>close-grip V-bar</strong> attachment. Feet on platforms."},{t:"Row",b:"Pull handle to lower abdomen. Elbows drive <strong>behind your torso</strong>."},{t:"Retract",b:"<strong>Squeeze shoulder blades together</strong> at peak. Chest stays tall."},{t:"Return",b:"Allow shoulder blades to protract fully — <strong>full stretch on the way back</strong>."}],muscles:"Mid Back, Lats, Biceps, Rear Delt"},
+{name:"Single-Arm DB Row",primary:"Unilateral Lats",sets:"3",reps:"10-14 per side",rest:"75s",steps:[{t:"Brace",b:"Knee and hand on bench. <strong>Back flat and parallel to floor</strong>."},{t:"Pull to Hip",b:"Row dumbbell to hip — NOT shoulder. Feel the <strong>lat doing the work</strong>."},{t:"Elbow Path",b:"Lead with elbow. At top, elbow should be <strong>above your back</strong>."},{t:"Stretch",b:"Let shoulder protract at bottom for a <strong>full lat stretch each rep</strong>."}],muscles:"Lats, Rhomboids, Biceps, Rear Delt"},
+{name:"Lat Pulldown",primary:"Latissimus Dorsi",sets:"3-4",reps:"10-14",rest:"75s",steps:[{t:"Lean Back",b:"Slight torso lean (10-15°). <strong>Wide overhand grip</strong>."},{t:"Pull to Chest",b:"Pull bar to <strong>upper chest</strong>. Lead with elbows toward hips."},{t:"Chest Forward",b:"Push chest <strong>forward and up</strong> to meet the bar — activates lats fully."},{t:"Return",b:"Let bar rise slowly, feeling the <strong>full lat stretch overhead</strong>."}],muscles:"Lats, Biceps, Lower/Mid Traps"}
+]},
+abs:{
+bodyweight:[
+{name:"Hollow Body Hold",primary:"Transverse Abdominis",sets:"3-4",reps:"20-45s",rest:"45s",steps:[{t:"Lie Flat",b:"On back, arms and legs extended. <strong>Press lower back into floor</strong> — this is key."},{t:"Raise",b:"Raise arms, head, shoulders, feet <strong>3-6 inches off floor</strong>. Body forms a slight banana curve."},{t:"Hold",b:"Hold without lower back arching. <strong>Breathe shallow but consistently</strong>."},{t:"Why",b:"Builds <strong>foundational tension</strong> used in all calisthenics — rings, bar, handstand."}],muscles:"Transverse Abs, Rectus Abdominis, Hip Flexors"},
+{name:"Plank",primary:"Core (Full)",sets:"3",reps:"30-90s",rest:"45s",steps:[{t:"Setup",b:"Forearms on floor. <strong>Elbows directly under shoulders</strong>."},{t:"Brace",b:"Squeeze abs as if bracing for a punch. <strong>Also squeeze glutes and quads</strong>."},{t:"Level Hips",b:"Don't let hips sag or pike. <strong>Straight line crown to heels</strong>."},{t:"Breathe",b:"Maintain normal breathing. <strong>Don't hold breath</strong>."}],muscles:"Transverse Abs, Obliques, Erectors, Glutes"},
+{name:"Bicycle Crunch",primary:"Rectus Abdominis + Obliques",sets:"3",reps:"15-20 per side",rest:"45s",steps:[{t:"Back Down",b:"Lie on back, lower back pressed to floor. <strong>Hands lightly behind head</strong>, elbows wide."},{t:"Pedal",b:"Bring right knee to chest while left leg extends. <strong>Rotate left elbow toward right knee</strong>."},{t:"Rotation",b:"Rotation comes from <strong>obliques contracting</strong> — not from pulling the neck."},{t:"Slow",b:"Slow controlled reps beat fast sloppy ones. <strong>2 seconds each direction</strong>."}],muscles:"Obliques, Rectus Abdominis, Hip Flexors"},
+{name:"Hanging Knee Raise",primary:"Lower Abs",sets:"3",reps:"10-15",rest:"60s",steps:[{t:"Hang",b:"Full hang from pull-up bar. <strong>Shoulders packed. Don't swing</strong>."},{t:"Raise Knees",b:"Bring knees to chest by contracting <strong>lower abs first</strong>, then hip flexors."},{t:"No Swing",b:"Control the movement. <strong>Stop and restart</strong> if you start swinging."},{t:"Progress",b:"Straighten legs for <strong>hanging leg raise</strong> — significantly harder."}],muscles:"Lower Rectus Abdominis, Hip Flexors, Obliques"},
+{name:"Russian Twist",primary:"Obliques",sets:"3",reps:"15-20 per side",rest:"45s",steps:[{t:"Sit Up",b:"Sit, knees bent, heels elevated 2 inches. <strong>Torso leaned back 30-45°</strong>."},{t:"Rotate",b:"Rotate torso left and right, touching floor beside hip each side. <strong>Control the rotation</strong>."},{t:"Arms Extended",b:"Keep arms extended in front — <strong>harder</strong>. Hold a weight for added resistance."},{t:"Breathe",b:"<strong>Exhale as you rotate</strong>, inhale at centre."}],muscles:"External + Internal Obliques, Transverse Abs"}
+],
+gym:[
+{name:"Cable Crunch",primary:"Rectus Abdominis",sets:"3-4",reps:"12-20",rest:"60s",steps:[{t:"Kneel",b:"Kneel below high pulley, rope held by each side of head."},{t:"Crunch Down",b:"Round spine, pulling <strong>elbows toward knees</strong>. Hips stay stationary."},{t:"Peak Contract",b:"At bottom, <strong>squeeze abs hard for 1 second</strong>."},{t:"Note",b:"Resistance through full ROM — <strong>superior to crunches</strong> for building size."}],muscles:"Rectus Abdominis (upper + lower)"},
+{name:"Ab Rollout",primary:"Transverse + Rectus Abs",sets:"3",reps:"8-12",rest:"75s",steps:[{t:"Kneel",b:"Kneel on pad with ab wheel. <strong>Arms straight</strong>."},{t:"Roll Out",b:"Roll wheel forward, hips descend. <strong>Maintain core tension throughout</strong>."},{t:"Stop",b:"Stop before you'd collapse. <strong>Hold 1 second</strong> at full extension."},{t:"Return",b:"Contract abs hard to pull wheel back. <strong>Don't use hip flexors</strong>."}],muscles:"Transverse Abs, Rectus Abdominis, Lats"},
+{name:"Pallof Press",primary:"Anti-Rotation Core",sets:"3",reps:"12-15 per side",rest:"60s",steps:[{t:"Setup",b:"Stand sideways to cable. Handle at <strong>chest height</strong>."},{t:"Press Out",b:"Press handle straight out from chest. <strong>Resist cable pulling you sideways</strong>."},{t:"Hold",b:"Fully extended arms — hold <strong>1-2 seconds</strong>. This is the hard part."},{t:"Return",b:"Bring handle back. The <strong>anti-rotation demand is where the core works</strong>."}],muscles:"Obliques, Transverse Abs, Glutes"},
+{name:"Decline Crunch",primary:"Upper Abs",sets:"3",reps:"15-20",rest:"60s",steps:[{t:"Setup",b:"Hook feet on decline bench at 30-45°. <strong>Arms crossed or hands behind head</strong>."},{t:"Crunch",b:"Curl shoulders toward knees. <strong>Lead with upper ab contraction, not hip flexors</strong>."},{t:"Top Hold",b:"Hold 1 second. <strong>Squeeze hard</strong>."},{t:"Lower",b:"Stop <strong>just before shoulders touch bench</strong> — maintain tension."}],muscles:"Upper Rectus Abdominis"},
+{name:"Landmine Twist",primary:"Obliques (Power)",sets:"3",reps:"10-12 per side",rest:"75s",steps:[{t:"Setup",b:"Hold end of loaded barbell in corner. <strong>Squat stance</strong>, both hands on bar."},{t:"Arc",b:"Swing bar in an arc from one hip to other. <strong>Rotate from torso, not arms</strong>."},{t:"Control",b:"No momentum — each direction is <strong>deliberate and controlled</strong>."},{t:"Power",b:"Builds <strong>rotational power</strong> for boxing, golf, martial arts, throwing."}],muscles:"External/Internal Obliques, Serratus, Core"}
+]},
+quads:{
+bodyweight:[
+{name:"Bodyweight Squat",primary:"Quadriceps",sets:"4",reps:"15-25",rest:"45s",steps:[{t:"Stance",b:"Feet shoulder-width, toes out 15-30°. <strong>Weight through whole foot</strong>."},{t:"Squat",b:"Push hips back and bend knees. <strong>Knees track over toes</strong>, don't cave."},{t:"Depth",b:"Thighs <strong>parallel or below parallel</strong> to floor."},{t:"Drive",b:"Push through full foot to stand. <strong>Squeeze glutes at top</strong>."}],muscles:"Quads, Glutes, Hamstrings, Core"},
+{name:"Bulgarian Split Squat",primary:"Quads + Glutes (Unilateral)",sets:"3",reps:"8-12 per leg",rest:"90s",steps:[{t:"Setup",b:"Rear foot elevated on bench. Front foot <strong>far enough forward</strong> for vertical shin."},{t:"Lower",b:"Drop back knee toward floor. <strong>Front knee stays over toes</strong>."},{t:"Drive",b:"Press through the <strong>heel of front foot</strong> to stand."},{t:"Balance",b:"Move front foot further forward if unstable. <strong>Core tight throughout</strong>."}],muscles:"Quads, Glutes, Hip Flexors, Hamstrings"},
+{name:"Wall Sit",primary:"Quads (Isometric)",sets:"3-4",reps:"30-90s",rest:"60s",steps:[{t:"Position",b:"Back flat against wall. Slide down until thighs are <strong>parallel to floor</strong>."},{t:"Feet",b:"Flat on floor, hip-width, <strong>directly below knees</strong>."},{t:"Hold",b:"Hold as long as possible. <strong>Don't push off thighs</strong> with hands."},{t:"Breathe",b:"Breathe normally. The <strong>quad burn is normal</strong> — push through it."}],muscles:"Quads (Isometric), Glutes"},
+{name:"Jump Squat",primary:"Quads + Power",sets:"3-4",reps:"10-15",rest:"90s",steps:[{t:"Squat",b:"Full squat position, <strong>arms back</strong>."},{t:"Explode",b:"Drive up explosively, swing arms forward. <strong>Leave the ground</strong>."},{t:"Land Soft",b:"Land with soft knees, absorbing impact. <strong>Go straight into next squat</strong>."},{t:"Power",b:"Builds <strong>explosive quad strength</strong> and improves athletic performance."}],muscles:"Quads, Glutes, Calves (explosive)"},
+{name:"Step-Up",primary:"Quads + Glutes",sets:"3",reps:"12-15 per leg",rest:"60s",steps:[{t:"Find Box",b:"Step or box at knee height. Place <strong>one full foot on top</strong>."},{t:"Drive Up",b:"Press through elevated foot's <strong>heel to step up</strong>. Don't push off back foot."},{t:"Lower",b:"Lower back foot slowly — <strong>2-3 second eccentric</strong>. Don't drop."},{t:"Height",b:"Higher box = more glute. Lower box = more quad. <strong>Adjust to target</strong>."}],muscles:"Quads, Glutes, Hamstrings"}
+],
+gym:[
+{name:"Barbell Back Squat",primary:"Quadriceps (Full)",sets:"4",reps:"5-8",rest:"3min",steps:[{t:"Bar Position",b:"Bar on upper traps (high bar) or rear delts (low bar). <strong>Shoulder-width grip</strong>."},{t:"Brace",b:"Big breath into belly. <strong>Brace core hard</strong>. Hold through the rep."},{t:"Descent",b:"Push hips back and down. Knees track toes. <strong>Below parallel for full quad activation</strong>."},{t:"Drive Up",b:"Drive floor away. <strong>Chest up as you rise</strong> — don't let hips shoot up first."}],muscles:"Quads, Glutes, Hamstrings, Erectors"},
+{name:"Leg Press",primary:"Quads + Glutes",sets:"4",reps:"10-15",rest:"90s",steps:[{t:"Foot Position",b:"Feet hip-width, middle of platform. <strong>Higher = more glute; lower = more quad</strong>."},{t:"Range",b:"Lower until knees reach <strong>90° or just below</strong>. Don't let lower back round."},{t:"Press",b:"Drive platform away without <strong>fully locking knees</strong> at the top."},{t:"Load",b:"Allows <strong>high volume with heavy weight</strong> — excellent for quad mass."}],muscles:"Quads, Glutes, Hamstrings"},
+{name:"Hack Squat",primary:"Quads (Sweep + Teardrop)",sets:"3-4",reps:"8-12",rest:"90s",steps:[{t:"Narrow Stance",b:"Feet narrow and low on platform. <strong>Maximizes quad sweep activation</strong>."},{t:"Depth",b:"Go as deep as flexibility allows — ideally <strong>below parallel</strong>."},{t:"Focus",b:"Machine removes spinal load — <strong>fully concentrate on quad contraction</strong>."},{t:"Pause",b:"<strong>Pause at bottom for 1 second</strong> — eliminates momentum."}],muscles:"Quads (VMO, sweep), Glutes"},
+{name:"Leg Extension",primary:"Quads (Isolation)",sets:"3",reps:"12-20",rest:"60s",steps:[{t:"Full Extension",b:"Extend legs to <strong>full lockout</strong> — final degrees are peak quad contraction."},{t:"Pause Top",b:"Hold at full extension for <strong>1-2 seconds</strong>."},{t:"Lower Slow",b:"Take 3 sec to lower. <strong>Eccentric loading builds quad mass</strong>."},{t:"Note",b:"Good for <strong>finishing pump</strong>. Pair with squats for best results."}],muscles:"Quads (isolation — rectus femoris, VMO)"},
+{name:"Front Squat",primary:"Quads (Upper) + Core",sets:"3",reps:"5-8",rest:"2-3min",steps:[{t:"Bar Position",b:"Bar on front delts in <strong>front rack</strong>. Elbows high, parallel to floor."},{t:"Upright",b:"Torso stays <strong>much more vertical</strong> than back squat — hammers the quads."},{t:"Depth",b:"Front squat allows <strong>greater depth</strong> for most due to upright torso."},{t:"Core",b:"Core and upper back work <strong>extremely hard</strong> to keep torso upright — bonus strength."}],muscles:"Quads, Glutes, Core, Upper Back"}
+]},
+hamstrings:{
+bodyweight:[
+{name:"Nordic Hamstring Curl",primary:"Hamstrings (Eccentric)",sets:"3",reps:"4-8 slow",rest:"2min",steps:[{t:"Anchor Feet",b:"Kneel on pad, have someone hold ankles or tuck under couch. <strong>Body tall</strong>."},{t:"Lower Slowly",b:"Keep body rigid, lower forward over <strong>5-8 seconds</strong>. Hamstrings control descent."},{t:"Catch",b:"Near the floor, catch yourself with hands. Do a <strong>partial push-up to reset</strong>."},{t:"Why",b:"<strong>Most effective hamstring exercise</strong> — reduces hamstring injury by up to 51%."}],muscles:"Hamstrings (eccentric — most effective)"},
+{name:"Glute Bridge",primary:"Hamstrings + Glutes",sets:"3-4",reps:"15-20",rest:"60s",steps:[{t:"Setup",b:"On back, feet flat hip-width, <strong>heels 8-12 inches from glutes</strong>."},{t:"Drive Up",b:"Press through heels, driving hips up. <strong>Squeeze glutes hard at top</strong>."},{t:"Hold",b:"Hold 1-2 sec at full extension. <strong>Don't hyperextend lower back</strong>."},{t:"Variation",b:"Move feet further from glutes to <strong>increase hamstring load</strong>."}],muscles:"Glutes, Hamstrings, Erectors"},
+{name:"Single-Leg Deadlift (BW)",primary:"Hamstrings (Unilateral)",sets:"3",reps:"10-12 per leg",rest:"60s",steps:[{t:"Stand",b:"Standing leg has a <strong>soft bend at knee</strong>. Arms hanging down."},{t:"Hinge",b:"Hinge forward at hip, free leg extends behind. Feel <strong>hamstring stretch</strong>."},{t:"Rise",b:"Contract hamstring and glute to return upright."},{t:"Balance",b:"Touch wall lightly if needed. Goal is to do it <strong>without support</strong>."}],muscles:"Hamstrings, Glutes, Erectors"},
+{name:"Good Morning (Hip Hinge)",primary:"Hamstrings + Erectors",sets:"3",reps:"12-15",rest:"60s",steps:[{t:"Stand Tall",b:"Hands behind head or on hips. <strong>Feet hip-width</strong>."},{t:"Hinge Back",b:"Push hips backward, tilting torso forward. <strong>Back stays flat</strong>."},{t:"Feel Stretch",b:"Feel the hamstring stretch as hips go back. <strong>Stop at your flexibility limit</strong>."},{t:"Return",b:"Drive hips forward. <strong>Glutes squeeze</strong> at the top."}],muscles:"Hamstrings, Glutes, Erector Spinae"},
+{name:"Floor Leg Curl",primary:"Hamstrings",sets:"3",reps:"12-15",rest:"60s",steps:[{t:"Lie Face Down",b:"Ankles under heavy furniture edge. <strong>Hook securely</strong>."},{t:"Curl",b:"Flex knees, curling ankles toward glutes. Keep <strong>hips on floor</strong>."},{t:"Squeeze",b:"<strong>Squeeze hamstrings hard</strong> at full flexion."},{t:"Lower",b:"Slowly extend legs back. <strong>Full range — no momentum</strong>."}],muscles:"Hamstrings (biceps femoris, semitendinosus)"}
+],
+gym:[
+{name:"Romanian Deadlift",primary:"Hamstrings (Stretch-Load)",sets:"4",reps:"8-12",rest:"90s",steps:[{t:"Hold at Hip",b:"Bar at hip level, <strong>overhand shoulder-width grip</strong>, slight knee bend."},{t:"Hinge",b:"Push hips back, lower bar down thighs. Feel a <strong>deep hamstring stretch</strong>."},{t:"Depth",b:"Lower until just below knees. <strong>Back stays neutral throughout</strong>."},{t:"Drive",b:"Drive hips forward to return. <strong>Squeeze glutes hard at top</strong>."}],muscles:"Hamstrings, Glutes, Erectors"},
+{name:"Lying Leg Curl",primary:"Hamstrings (Isolation)",sets:"3-4",reps:"10-15",rest:"75s",steps:[{t:"Setup",b:"Pad just above ankles. Hips flat. <strong>Toes pointed slightly toward shin</strong> for better contraction."},{t:"Curl",b:"Flex knees fully, heels to glutes. <strong>Full range of motion</strong>."},{t:"Pause",b:"Hold 1 sec at top. <strong>Feel the hamstring squeeze</strong>."},{t:"Lower",b:"3-second eccentric. <strong>Don't let weights slam</strong>."}],muscles:"Hamstrings (biceps femoris, semitendinosus, semimembranosus)"},
+{name:"Glute-Ham Raise",primary:"Hamstrings + Glutes",sets:"3",reps:"6-12",rest:"90s",steps:[{t:"GHD Machine",b:"Knees on pad, feet anchored. Body <strong>starts horizontal</strong>."},{t:"Lower",b:"Lower torso toward floor under full <strong>hamstring control</strong>."},{t:"Curl Up",b:"Use hamstrings and glutes to <strong>curl body back up</strong>. Arms can assist."},{t:"Elite",b:"One of the <strong>hardest hamstring exercises</strong> — builds strength and mass."}],muscles:"Hamstrings, Glutes, Erectors"},
+{name:"Sumo Deadlift",primary:"Hamstrings + Adductors",sets:"3",reps:"5-8",rest:"3min",steps:[{t:"Wide Stance",b:"Feet 1.5-2× shoulder-width. <strong>Toes out 45°</strong>."},{t:"Grip Inside",b:"Hands inside legs, shoulder-width. <strong>Shins vertical</strong> at setup."},{t:"Drive",b:"Push legs outward as you push floor down. <strong>Hips open throughout</strong>."},{t:"Lock Out",b:"Hamstring and adductor combo makes this <strong>very posterior-chain heavy</strong>."}],muscles:"Hamstrings, Adductors, Glutes, Erectors"},
+{name:"Seated Leg Curl",primary:"Hamstrings (Short Head)",sets:"3",reps:"12-15",rest:"60s",steps:[{t:"Seat",b:"Back pad so thighs fully supported. <strong>Ankle pad just above Achilles</strong>."},{t:"Curl",b:"Flex knees fully, pull pad toward seat. <strong>Full range of motion</strong>."},{t:"Why Seated",b:"Hip is flexed, which <strong>preferentially loads the short head</strong> of biceps femoris."},{t:"Eccentric",b:"3-second descent. <strong>Short head responds well to eccentric loading</strong>."}],muscles:"Short Head of Biceps Femoris"}
+]},
+glutes:{
+bodyweight:[
+{name:"Hip Thrust (BW)",primary:"Gluteus Maximus",sets:"4",reps:"15-25",rest:"60s",steps:[{t:"Setup",b:"Upper back on couch/bench edge. Feet flat hip-width, <strong>heels below knees</strong>."},{t:"Drive Up",b:"Press through heels, driving hips skyward. <strong>Fully extend hips at top</strong>."},{t:"Squeeze",b:"<strong>Glute squeeze for 2 seconds at top</strong> — maximal glute max contraction."},{t:"Lower",b:"Lower hips toward floor without touching. <strong>Maintain tension throughout</strong>."}],muscles:"Glutes (Maximus), Hamstrings, Core"},
+{name:"Glute Kickback",primary:"Gluteus Maximus",sets:"3",reps:"15-20 per leg",rest:"45s",steps:[{t:"All Fours",b:"On hands and knees. <strong>Knee under hip, wrist under shoulder</strong>."},{t:"Kick Back",b:"Extend one leg straight back and up. <strong>Squeeze glute hard at full extension</strong>."},{t:"Pulse",b:"At full extension, do <strong>10 small pulses</strong> before switching — intense burn."},{t:"Band",b:"Loop resistance band above knees for <strong>added resistance</strong>."}],muscles:"Gluteus Maximus, Hamstrings"},
+{name:"Clamshell",primary:"Gluteus Medius",sets:"3-4",reps:"15-25 per side",rest:"30s",steps:[{t:"Side Lie",b:"Lie on side, knees bent 90°, stacked. <strong>Hips angled slightly forward</strong>."},{t:"Open",b:"Lift top knee, rotating at the hip like a <strong>clamshell opening</strong>. Don't roll pelvis."},{t:"Hold",b:"<strong>Hold 1-2 seconds at top</strong> — squeeze glute med hard."},{t:"Why",b:"Glute med stabilises the <strong>pelvis during walking and running</strong> — often neglected."}],muscles:"Gluteus Medius, Gluteus Minimus"},
+{name:"Single-Leg Glute Bridge",primary:"Glutes (Unilateral)",sets:"3",reps:"12-15 per leg",rest:"60s",steps:[{t:"Setup",b:"Bridge setup but one leg extended at 45°. <strong>Other foot flat on floor</strong>."},{t:"Drive Up",b:"Press through working heel, lifting hips. <strong>Don't let extended leg drop</strong>."},{t:"Level Hips",b:"<strong>Keep hips level</strong> — the working side tends to hike. Resist this."},{t:"Squeeze",b:"Full glute squeeze at top. <strong>Much harder than two-leg version</strong>."}],muscles:"Glutes (unilateral), Hamstrings, Core"},
+{name:"Lateral Band Walk",primary:"Gluteus Medius + Minimus",sets:"3",reps:"15-20 steps each way",rest:"45s",steps:[{t:"Band",b:"Band just above knees. <strong>Slight squat stance</strong>, feet shoulder-width."},{t:"Walk",b:"Step laterally, keeping feet hip-width apart. <strong>Maintain squat position</strong>."},{t:"Tension",b:"Keep band <strong>always under tension</strong> — don't let feet come together."},{t:"Both Ways",b:"Equal steps in <strong>both directions</strong>."}],muscles:"Gluteus Medius, Gluteus Minimus, TFL"}
+],
+gym:[
+{name:"Barbell Hip Thrust",primary:"Gluteus Maximus (Peak)",sets:"4",reps:"8-12",rest:"90s",steps:[{t:"Setup",b:"Upper back on bench. Bar over hip crease, <strong>padded with foam</strong>. Feet flat, hip-width."},{t:"Drive",b:"Drive hips to full extension. <strong>Chin to chest</strong> to keep spine neutral."},{t:"Peak Hold",b:"Hold <strong>1-2 seconds at top</strong> — highest glute activation of any exercise."},{t:"Why",b:"Hip thrust has the <strong>highest glute EMG</strong> — beats squats and deadlifts for glutes."}],muscles:"Gluteus Maximus (peak activation)"},
+{name:"Romanian Deadlift",primary:"Glutes + Hamstrings",sets:"3-4",reps:"8-12",rest:"90s",steps:[{t:"Hinge",b:"Push hips back lowering bar. <strong>Feel the glute stretch</strong>."},{t:"Stretch Load",b:"The <strong>stretched position is where glutes grow</strong> — go deep."},{t:"Drive",b:"Return by driving hips forward. <strong>Squeeze glutes hard at lockout</strong>."},{t:"Note",b:"Keep slight knee bend always. <strong>Back stays neutral</strong> throughout."}],muscles:"Gluteus Maximus, Hamstrings"},
+{name:"Cable Kickback",primary:"Glutes (Isolation)",sets:"3",reps:"15-20 per side",rest:"60s",steps:[{t:"Ankle Cuff",b:"Attach cable cuff to ankle. Face machine, <strong>hold for support</strong>."},{t:"Extend Back",b:"Kick leg straight back and up, squeezing glute. <strong>Don't swing — control it</strong>."},{t:"Pause",b:"Hold 1 sec with <strong>full glute contraction</strong>."},{t:"Return Slow",b:"Constant cable tension <strong>beats bodyweight version</strong>."}],muscles:"Gluteus Maximus, Hamstrings"},
+{name:"Sumo / Goblet Squat",primary:"Glutes + Adductors",sets:"3-4",reps:"10-15",rest:"75s",steps:[{t:"Wide Stance",b:"Feet 1.5× shoulder-width, toes 45° out. Hold <strong>kettlebell/dumbbell at chest</strong>."},{t:"Squat Deep",b:"Sit down between heels. <strong>Elbows push knees out</strong> at the bottom."},{t:"Drive Up",b:"Push through heels and <strong>squeeze inner thighs and glutes</strong> to rise."},{t:"Depth",b:"Deep sumo <strong>maximally stretches and loads</strong> glutes and adductors."}],muscles:"Glutes, Adductors, Quads, Hamstrings"},
+{name:"Abductor Machine",primary:"Gluteus Medius",sets:"3",reps:"15-20",rest:"60s",steps:[{t:"Sit Tall",b:"Back supported. <strong>Slight lean forward</strong> to engage glute med more."},{t:"Push Out",b:"Abduct legs against resistance. <strong>Full range of motion</strong>."},{t:"Squeeze Out",b:"Hold at full abduction for <strong>1 second</strong>."},{t:"Return",b:"Resist pads closing — <strong>3-second eccentric</strong> for glute med growth."}],muscles:"Gluteus Medius, Gluteus Minimus, TFL"}
+]},
+calves:{
+bodyweight:[
+{name:"Standing Calf Raise",primary:"Gastrocnemius",sets:"4-5",reps:"15-30",rest:"45s",steps:[{t:"Edge Setup",b:"Balls of feet on step edge, <strong>heels hanging free</strong>."},{t:"Lower",b:"Allow heels to drop <strong>as far as possible</strong>. Full stretch is key."},{t:"Rise",b:"Press up to tiptoes as high as possible. <strong>Full range every rep</strong>."},{t:"Tempo",b:"<strong>3 seconds up, 3 seconds down</strong>. No bouncing."}],muscles:"Gastrocnemius, Soleus"},
+{name:"Seated Calf Raise (Improvised)",primary:"Soleus",sets:"4",reps:"20-30",rest:"45s",steps:[{t:"Seated",b:"Sit on chair, heavy book on thighs. <strong>Balls of feet on small platform</strong>."},{t:"Rise",b:"Press toes down, lifting heels. <strong>Full extension — pause at top</strong>."},{t:"Lower",b:"Full heel drop. <strong>Feel the deep soleus stretch</strong>."},{t:"Why",b:"Bent knee <strong>relaxes gastrocnemius</strong>, isolating the soleus specifically."}],muscles:"Soleus (deep calf)"},
+{name:"Jump Rope",primary:"Calves (Endurance)",sets:"4",reps:"60s continuous",rest:"45s",steps:[{t:"Light Feet",b:"Land on <strong>balls of feet</strong> — not heels. Jumps small and quick."},{t:"Arms",b:"Small wrist rotations. <strong>Arms stay close to body</strong>."},{t:"Rhythm",b:"Find steady rhythm. <strong>Nasal breathing</strong> helps pace."},{t:"Benefits",b:"Builds calf <strong>endurance, explosive power, and ankle stability</strong>."}],muscles:"Gastrocnemius, Soleus, Tibialis Anterior"},
+{name:"Plyometric Calf Hop",primary:"Explosive Gastrocnemius",sets:"3",reps:"30 hops",rest:"60s",steps:[{t:"Ball of Foot",b:"Stand on balls of feet. <strong>Small quick hops</strong> as fast as possible."},{t:"No Heel",b:"<strong>Heels never touch floor</strong>. This is the entire point."},{t:"Ground Time",b:"Think 'hot coals' — <strong>minimal ground contact time</strong>."},{t:"Progress",b:"<strong>Single leg version</strong> — massive calf and ankle builder."}],muscles:"Gastrocnemius, Achilles Tendon"},
+{name:"Wall Calf Stretch + Hold",primary:"Gastrocnemius + Soleus",sets:"3",reps:"15-20",rest:"30s",steps:[{t:"Face Wall",b:"Hands on wall. One foot forward, one back. <strong>Both feet flat</strong>."},{t:"Raise Heel",b:"Raise back heel, pressing onto ball of foot. <strong>Deep stretch in front calf</strong>."},{t:"Hold",b:"<strong>Hold 2 seconds at full extension</strong>."},{t:"Stretch",b:"Between sets, <strong>stretch calves 20 seconds</strong> — improves range of motion."}],muscles:"Gastrocnemius, Soleus, Achilles"}
+],
+gym:[
+{name:"Standing Calf Raise Machine",primary:"Gastrocnemius",sets:"4-5",reps:"12-20",rest:"60s",steps:[{t:"Shoulder Pads",b:"Pads on shoulders, balls of feet on edge. <strong>Heels hanging free</strong>."},{t:"Full Range",b:"Drop heels to maximum stretch before each rep. <strong>Never skip the stretch</strong>."},{t:"Pause Top",b:"<strong>Pause 1 second at peak</strong> — prevents bouncing."},{t:"Vary Angle",b:"<strong>Toes in = outer head. Toes out = inner head.</strong>"}],muscles:"Gastrocnemius (both heads), Soleus"},
+{name:"Leg Press Calf Raise",primary:"Gastrocnemius + Soleus",sets:"4",reps:"15-25",rest:"60s",steps:[{t:"Foot Position",b:"Only balls of feet on <strong>bottom edge of leg press</strong>. Legs nearly straight."},{t:"Press",b:"Extend ankles. <strong>Fully extend to tiptoe</strong>."},{t:"Lower",b:"Full heel drop. <strong>Don't let weight bounce at bottom</strong>."},{t:"Load",b:"Can use <strong>significantly more weight</strong> than standing machine."}],muscles:"Gastrocnemius, Soleus"},
+{name:"Seated Calf Raise Machine",primary:"Soleus (Deep)",sets:"4",reps:"15-25",rest:"60s",steps:[{t:"Setup",b:"Pads on lower thighs. <strong>90° knee angle</strong>."},{t:"Deep Stretch",b:"Lower heels fully. <strong>Soleus responds best to deep stretch</strong>."},{t:"Rise",b:"Push to tiptoe. <strong>Doesn't need as heavy weight</strong> as gastrocnemius."},{t:"High Reps",b:"Soleus is <strong>slow-twitch dominant</strong> — responds to higher reps."}],muscles:"Soleus (dominant), Gastrocnemius"},
+{name:"Donkey Calf Raise",primary:"Gastrocnemius (Long Head)",sets:"3-4",reps:"12-20",rest:"60s",steps:[{t:"Hinge Forward",b:"Lean torso 90° supported on a bench. <strong>Balls of feet on platform</strong>."},{t:"Straight Legs",b:"Legs nearly straight throughout. <strong>Hip flexion changes gastrocnemius stretch</strong>."},{t:"Rise",b:"Press up to full tiptoe. Pause and squeeze."},{t:"Biomechanics",b:"<strong>Hip flexion stretches gastrocnemius more</strong> than standing — unique ROM."}],muscles:"Gastrocnemius (especially lateral head)"},
+{name:"Smith Machine Calf Raise",primary:"Gastrocnemius (Loaded)",sets:"4",reps:"12-20",rest:"60s",steps:[{t:"Setup",b:"Bar on upper traps. <strong>Toes on weight plates</strong> for range of motion."},{t:"Balance",b:"Smith removes balance demand — <strong>focus entirely on calves</strong>."},{t:"Full Range",b:"<strong>Every inch of ROM matters</strong> — full stretch, full extension."},{t:"Overload",b:"Can load <strong>very heavy</strong>. Calves need progressive overload to grow."}],muscles:"Gastrocnemius (both heads), Soleus"}
+]},
+traps:{
+bodyweight:[
+{name:"Prone Trap Raise (Y-T-W)",primary:"Upper + Middle Traps",sets:"3",reps:"12-15",rest:"45s",steps:[{t:"Y Position",b:"Lie face down, arms overhead in Y. <strong>Thumbs pointing up</strong>."},{t:"Raise Arms",b:"Lift arms using upper and mid-trap. <strong>Don't shrug upward</strong>."},{t:"T + W",b:"Also perform T (arms at 90°) and W (elbows bent, hands beside head) positions."},{t:"Hold",b:"Hold 2 sec at each peak. <strong>Squeeze between shoulder blades</strong>."}],muscles:"Upper Traps, Middle Traps, Rhomboids"},
+{name:"Shoulder Shrug (Book/Bag)",primary:"Upper Trapezius",sets:"3",reps:"15-20",rest:"45s",steps:[{t:"Hold Weight",b:"Hold heavy books or bags at sides. <strong>Arms straight</strong>."},{t:"Shrug Up",b:"Elevate shoulders toward ears. <strong>Don't roll them forward</strong>."},{t:"Hold",b:"Pause at top for <strong>1-2 seconds</strong>."},{t:"Lower",b:"Lower slowly. Feel the <strong>full trap stretch at the bottom</strong>."}],muscles:"Upper Trapezius, Levator Scapulae"},
+{name:"Wall Angel",primary:"Mid/Lower Traps + Posture",sets:"3",reps:"10-15",rest:"30s",steps:[{t:"Wall Contact",b:"Stand with back flat. <strong>Head, thoracic spine, sacrum</strong> all touching wall."},{t:"Arms Up",b:"Raise arms to T position, then overhead. <strong>Maintain wall contact throughout</strong>."},{t:"Fight It",b:"If arms lose contact — that's your mobility limit. <strong>Work gently at the edge</strong>."},{t:"Why",b:"Builds <strong>lower trap strength</strong> and corrects upper-cross syndrome."}],muscles:"Mid/Lower Traps, Rhomboids, Serratus Anterior"},
+{name:"Bear Crawl",primary:"Traps + Serratus",sets:"3",reps:"20-30 meters",rest:"60s",steps:[{t:"Setup",b:"On all fours, knees <strong>2 inches off floor</strong>. Back flat."},{t:"Crawl",b:"Move opposite hand and foot simultaneously. <strong>Hips level — don't sway</strong>."},{t:"Push Active",b:"Push floor actively through hands — engages <strong>serratus and lower traps</strong>."},{t:"Breathe",b:"<strong>Steady rhythm</strong>. Move silently and controlled."}],muscles:"Serratus, Lower/Mid Traps, Core, Shoulders"},
+{name:"Scapular Retraction Hold",primary:"Mid Traps + Rhomboids",sets:"3-4",reps:"15-20",rest:"30s",steps:[{t:"Lie Face Down",b:"Arms at 90° from body (T position), <strong>thumbs up, elbows bent</strong>."},{t:"Retract",b:"Squeeze shoulder blades together, lifting elbows off floor."},{t:"Hold",b:"<strong>Hold 2 seconds at peak squeeze</strong>."},{t:"Reset",b:"Allow blades to release fully before next rep. <strong>Full range matters</strong>."}],muscles:"Middle Traps, Rhomboids, Posterior Delt"}
+],
+gym:[
+{name:"Barbell Shrug",primary:"Upper Trapezius",sets:"4",reps:"10-15",rest:"90s",steps:[{t:"Grip",b:"Overhand grip just outside hip width. <strong>Straps recommended</strong>."},{t:"Shrug Up",b:"Elevate shoulders toward ears maximally. <strong>Don't roll shoulders — straight up</strong>."},{t:"Hold",b:"<strong>2-second hold</strong> at top. Traps respond well to isometric holds."},{t:"Lower Fully",b:"<strong>Fully depress shoulders</strong> at bottom — full range builds more than partial."}],muscles:"Upper Trapezius, Levator Scapulae"},
+{name:"Rack Pull",primary:"Upper + Middle Traps",sets:"3-4",reps:"5-8",rest:"3min",steps:[{t:"Bar Height",b:"Safety bars at knee height. <strong>Heavy overhand or mixed grip</strong>."},{t:"Shrug at Top",b:"At lockout, actively <strong>shrug shoulders up and back</strong>."},{t:"Retract",b:"<strong>Retract scapulae at the top</strong> — engages mid-traps heavily."},{t:"Load",b:"Can use <strong>heavier than deadlift</strong> — massive trap overload."}],muscles:"Upper + Mid Traps, Rhomboids, Erectors"},
+{name:"Face Pull (Cable)",primary:"Mid Traps + Rear Delt",sets:"3-4",reps:"15-20",rest:"60s",steps:[{t:"Eye Level",b:"High pulley, rope attachment. <strong>Pull to face level</strong>."},{t:"External Rotate",b:"As you pull, externally rotate — hands end <strong>beside ears, pointing up</strong>."},{t:"Retract",b:"Squeeze <strong>shoulder blades together</strong> at full pull. Traps heavily engaged."},{t:"Must Do",b:"<strong>Best exercise for shoulder health and trap development</strong> simultaneously."}],muscles:"Mid/Lower Traps, Rear Delt, External Rotators"},
+{name:"DB Upright Row",primary:"Upper Traps + Lateral Delt",sets:"3",reps:"10-14",rest:"75s",steps:[{t:"Hold Dumbbells",b:"Dumbbells in front of thighs, <strong>overhand grip</strong>."},{t:"Pull to Chin",b:"Pull dumbbells upward, <strong>elbows flaring out to sides</strong>."},{t:"Height",b:"Pull until upper arms <strong>parallel to floor</strong>. No higher — impingement risk."},{t:"DB vs Bar",b:"<strong>Dumbbells are safer</strong> than barbell for this movement."}],muscles:"Upper Traps, Lateral Delt, Biceps"},
+{name:"Farmer's Carry",primary:"Traps (Loaded Carry)",sets:"4",reps:"30-40 meters",rest:"90s",steps:[{t:"Heavy Load",b:"Hold heaviest available dumbbells in both hands. <strong>Stand tall</strong>."},{t:"Walk",b:"Controlled steps. <strong>Don't let shoulders shrug or round</strong>."},{t:"Posture",b:"Chest up, shoulders back. <strong>Engage traps to resist elevation</strong>."},{t:"Benefits",b:"Builds <strong>grip, traps, core, and mental toughness</strong> simultaneously."}],muscles:"Traps, Forearms, Core, Shoulders"}
+]},
+forearms:{
+bodyweight:[
+{name:"Dead Hang",primary:"Forearm Flexors + Grip",sets:"3-4",reps:"30-60s",rest:"60s",steps:[{t:"Hang",b:"Full hang from pull-up bar. <strong>Shoulders packed</strong>."},{t:"Crush",b:"<strong>Crush the bar in your hands as hard as possible</strong> while hanging."},{t:"Hold",b:"Hold until grip fails. <strong>That is the point of the exercise</strong>."},{t:"Progress",b:"Fat grips, towel over bar, or <strong>two-finger hang</strong> for advanced."}],muscles:"Forearm Flexors, Brachioradialis, Grip"},
+{name:"Wrist Roller (DIY)",primary:"Full Forearm",sets:"3",reps:"Full roll up/down",rest:"60s",steps:[{t:"Build It",b:"Tie weight to a rope looped around a thick stick. <strong>Arms extended in front</strong>."},{t:"Roll Up",b:"Alternately rotate wrists to wind rope up. <strong>Keep arms horizontal</strong>."},{t:"Roll Down",b:"Slowly unwind — <strong>the eccentric is equally important</strong>."},{t:"Load",b:"Distance the weight hangs <strong>determines difficulty</strong>. Add weight to progress."}],muscles:"Flexors + Extensors, Full Forearm"},
+{name:"Towel Pull-Up",primary:"Grip + Forearms",sets:"3",reps:"5-10",rest:"90s",steps:[{t:"Setup",b:"Drape two towels over pull-up bar. <strong>Grab one in each hand</strong>."},{t:"Pull",b:"Normal pull-up. <strong>Unstable grip forces forearms to work overtime</strong>."},{t:"Control",b:"Especially control the descent — <strong>gripping a round object is forearm-driven</strong>."},{t:"Warning",b:"This is a <strong>forearm destroyer</strong> — expect grip to fail before back."}],muscles:"Forearms, Biceps, Lats"},
+{name:"Fingertip Push-Up",primary:"Forearms + Finger Tendons",sets:"3",reps:"6-12",rest:"75s",steps:[{t:"Setup",b:"Standard push-up but only <strong>fingertips contact the floor</strong>."},{t:"Controlled",b:"Slow controlled movement. <strong>No bouncing</strong> — this stresses tendons."},{t:"Warning",b:"Build up gradually over <strong>weeks/months</strong>. Tendons heal slowly."},{t:"Benefits",b:"Builds <strong>exceptional finger and forearm strength</strong> for climbing, martial arts."}],muscles:"Forearm Flexors, Finger Tendons, Hand Intrinsics"},
+{name:"Plate Pinch Hold",primary:"Pinch Grip",sets:"3",reps:"30-45s",rest:"60s",steps:[{t:"Plate",b:"Hold a weight plate pinched between <strong>thumb and four fingers</strong>, not palm."},{t:"Hold",b:"Hold at side for max time. <strong>Smooth surface is harder</strong>."},{t:"Two Plates",b:"Pinch <strong>two plates back-to-back</strong> (smooth sides out) for added challenge."},{t:"Why",b:"Pinch grip is the <strong>weakest pattern for most people</strong> — highly effective training."}],muscles:"Thumb Muscles, Forearm Flexors"}
+],
+gym:[
+{name:"Barbell Wrist Curl",primary:"Forearm Flexors",sets:"3-4",reps:"12-20",rest:"45s",steps:[{t:"Setup",b:"Sit, forearms on thighs, <strong>wrists hanging off knees</strong>. Underhand grip."},{t:"Curl Up",b:"Curl wrists upward, contracting <strong>forearm flexors fully</strong>."},{t:"Lower",b:"Lower wrists fully — let <strong>bar roll to fingertips</strong> for full stretch."},{t:"Feel",b:"Deep burn in the <strong>forearm belly</strong> — that's correct."}],muscles:"Flexor Carpi Radialis/Ulnaris, Flexor Digitorum"},
+{name:"Reverse Wrist Curl",primary:"Forearm Extensors",sets:"3",reps:"12-20",rest:"45s",steps:[{t:"Overhand Grip",b:"Forearms on thighs, <strong>overhand grip</strong> (knuckles up)."},{t:"Extend Wrists",b:"Extend wrists upward, contracting <strong>top side of forearm</strong>."},{t:"Lower",b:"Wrists drop back fully — <strong>balanced development prevents injury</strong>."},{t:"Balance",b:"Most only train flexors. <strong>Extensors are equally important</strong> for elbow health."}],muscles:"Extensor Carpi Radialis/Ulnaris, Brachioradialis"},
+{name:"Reverse Curl",primary:"Brachioradialis + Extensors",sets:"3",reps:"10-15",rest:"60s",steps:[{t:"Overhand Grip",b:"Standard curl position with <strong>overhand (pronated) grip</strong>."},{t:"Curl Up",b:"Curl bar toward chin. <strong>Brachioradialis does most work here</strong>."},{t:"Strict Form",b:"<strong>Very strict form required</strong> — much harder than regular curl."},{t:"Why",b:"Brachioradialis = the large muscle on <strong>outer forearm</strong>. This targets it directly."}],muscles:"Brachioradialis, Extensor Carpi, Biceps"},
+{name:"Farmer's Carry",primary:"Full Forearm + Grip",sets:"4",reps:"40 meters",rest:"90s",steps:[{t:"Heavy",b:"<strong>Heaviest dumbbells</strong> or farmer handles available."},{t:"Walk",b:"Controlled steps. Keep shoulders <strong>back, chest up</strong>."},{t:"Don't Switch",b:"<strong>Walk until grip fails</strong> — don't put down early."},{t:"Best",b:"Farmer's carry may be the single <strong>most effective grip and forearm exercise</strong>."}],muscles:"Entire Forearm, Grip, Traps, Core"},
+{name:"Fat Grip Hold",primary:"Full Hand + Forearm",sets:"3-4",reps:"30-45s",rest:"75s",steps:[{t:"Fat Grips",b:"Wrap fat grips around dumbbell, or use <strong>thick-handled dumbbell</strong>."},{t:"Hold at Side",b:"Stand tall and simply <strong>hold the weight for time</strong>."},{t:"Squeeze",b:"<strong>Actively crush</strong> the handle throughout."},{t:"Why",b:"Thick handles <strong>prevent full hand closure</strong> — dramatically increases forearm demand."}],muscles:"All Forearm Muscles, Hand Intrinsics"}
+]}
+};
+
+const FRONT_MALE=`<svg class="anatomy-svg" viewBox="0 0 300 620" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="150" cy="45" rx="28" ry="32" class="body-base"/>
+<rect x="138" y="74" width="24" height="22" rx="4" class="body-base"/>
+<path d="M105 96 Q88 100 80 115 L72 200 Q70 220 75 230 L90 280 L210 280 L225 230 Q230 220 228 200 L220 115 Q212 100 195 96 Z" class="body-base"/>
+<path d="M80 115 Q62 125 58 145 L48 230 Q46 250 52 265 L64 305 Q68 315 72 305 L78 265 Q84 248 82 232 L90 180 Z" class="body-base"/>
+<path d="M220 115 Q238 125 242 145 L252 230 Q254 250 248 265 L236 305 Q232 315 228 305 L222 265 Q216 248 218 232 L210 180 Z" class="body-base"/>
+<path d="M52 265 Q44 285 44 310 L46 355 Q47 365 54 368 L60 368 Q67 365 68 355 L70 310 Q72 290 66 265 Z" class="body-base"/>
+<path d="M248 265 Q256 285 256 310 L254 355 Q253 365 246 368 L240 368 Q233 365 232 355 L230 310 Q228 290 234 265 Z" class="body-base"/>
+<path d="M90 280 Q75 285 68 300 L66 332 Q68 345 82 348 L218 348 Q232 345 234 332 L232 300 Q225 285 210 280 Z" class="body-base"/>
+<path d="M80 345 Q65 355 60 380 L55 445 Q53 470 58 490 L70 510 Q77 520 83 510 L89 490 Q93 468 91 444 L96 380 Z" class="body-base"/>
+<path d="M220 345 Q235 355 240 380 L245 445 Q247 470 242 490 L230 510 Q223 520 217 510 L211 490 Q207 468 209 444 L204 380 Z" class="body-base"/>
+<path d="M58 490 Q50 510 50 538 L52 572 Q54 582 62 584 L70 584 Q78 582 80 572 L82 538 Q84 510 76 490 Z" class="body-base"/>
+<path d="M242 490 Q250 510 250 538 L248 572 Q246 582 238 584 L230 584 Q222 582 220 572 L218 538 Q216 510 224 490 Z" class="body-base"/>
+<g class="muscle-group" data-muscle="traps"><path d="M118 78 Q132 70 150 68 Q168 70 182 78 Q190 90 150 98 Q110 90 118 78 Z"/></g>
+<g class="muscle-group" data-muscle="chest"><path d="M100 108 Q120 98 145 102 Q170 98 190 108 Q200 122 190 145 Q180 162 150 168 Q120 162 110 145 Q100 128 100 108 Z"/><path d="M110 114 Q125 106 145 110 Q165 106 180 114 Q188 126 180 142 Q165 152 145 156 Q125 152 115 142 Q108 128 110 114 Z" opacity="0.85"/></g>
+<g class="muscle-group" data-muscle="shoulders"><ellipse cx="82" cy="112" rx="18" ry="24" transform="rotate(-15 82 112)"/><ellipse cx="218" cy="112" rx="18" ry="24" transform="rotate(15 218 112)"/></g>
+<g class="muscle-group" data-muscle="biceps"><path d="M56 148 Q50 165 52 185 L58 230 Q64 242 72 238 L76 210 Q74 185 68 158 Q62 148 56 148 Z"/><path d="M244 148 Q250 165 248 185 L242 230 Q236 242 228 238 L224 210 Q226 185 232 158 Q238 148 244 148 Z"/></g>
+<g class="muscle-group" data-muscle="triceps"><path d="M74 156 Q80 150 88 164 L92 204 Q88 224 80 228 L74 208 Q70 184 74 156 Z" opacity="0.78"/><path d="M226 156 Q220 150 212 164 L208 204 Q212 224 220 228 L226 208 Q230 184 226 156 Z" opacity="0.78"/></g>
+<g class="muscle-group" data-muscle="forearms"><path d="M46 268 Q40 285 40 308 L44 352 Q48 365 56 366 L62 366 Q70 363 71 352 L72 308 Q74 285 68 268 Z"/><path d="M254 268 Q260 285 260 308 L256 352 Q252 365 244 366 L238 366 Q230 363 229 352 L228 308 Q226 285 232 268 Z"/></g>
+<g class="muscle-group" data-muscle="abs"><rect x="129" y="163" width="42" height="20" rx="6"/><rect x="129" y="189" width="42" height="20" rx="6"/><rect x="129" y="215" width="42" height="18" rx="6"/><path d="M92 178 L129 187 L129 230 L98 244 Q90 234 88 220 Z" opacity="0.7"/><path d="M208 178 L171 187 L171 230 L202 244 Q210 234 212 220 Z" opacity="0.7"/></g>
+<g class="muscle-group" data-muscle="quads"><path d="M68 348 Q57 362 53 384 L49 447 Q49 470 57 489 L71 506 Q79 514 85 506 L91 489 Q95 467 93 444 L97 381 Q88 357 79 348 Z"/><path d="M232 348 Q243 362 247 384 L251 447 Q251 470 243 489 L229 506 Q221 514 215 506 L209 489 Q205 467 207 444 L203 381 Q212 357 221 348 Z"/></g>
+<g class="muscle-group" data-muscle="glutes"><path d="M90 280 Q78 286 70 298 L68 330 Q70 344 84 347 L121 348 Q116 330 115 310 Q113 293 104 285 Z" opacity="0.82"/><path d="M210 280 Q222 286 230 298 L232 330 Q230 344 216 347 L179 348 Q184 330 185 310 Q187 293 196 285 Z" opacity="0.82"/></g>
+<g class="muscle-group" data-muscle="calves"><path d="M52 492 Q44 514 44 540 L46 570 Q49 581 59 583 L67 583 Q77 581 79 570 L80 540 Q82 514 74 492 Z"/><path d="M248 492 Q256 514 256 540 L254 570 Q251 581 241 583 L233 583 Q223 581 221 570 L220 540 Q218 514 226 492 Z"/></g>
+<text class="muscle-label" x="150" y="133" text-anchor="middle">CHEST</text>
+<text class="muscle-label" x="83" y="97" text-anchor="middle">DELT</text>
+<text class="muscle-label" x="37" y="193" text-anchor="end">BICEP</text><line class="label-line" x1="39" y1="191" x2="57" y2="188"/>
+<text class="muscle-label" x="263" y="193" text-anchor="start">BICEP</text><line class="label-line" x1="261" y1="191" x2="243" y2="188"/>
+<text class="muscle-label" x="150" y="182" text-anchor="middle">ABS</text>
+<text class="muscle-label" x="32" y="310" text-anchor="end">FORE</text><text class="muscle-label" x="32" y="318" text-anchor="end">ARM</text><line class="label-line" x1="34" y1="308" x2="48" y2="304"/>
+<text class="muscle-label" x="33" y="430" text-anchor="end">QUAD</text><line class="label-line" x1="35" y1="428" x2="58" y2="420"/>
+<text class="muscle-label" x="267" y="430" text-anchor="start">QUAD</text><line class="label-line" x1="265" y1="428" x2="242" y2="420"/>
+<text class="muscle-label" x="33" y="538" text-anchor="end">CALF</text><line class="label-line" x1="35" y1="536" x2="52" y2="528"/>
+<text class="muscle-label" x="267" y="538" text-anchor="start">CALF</text><line class="label-line" x1="265" y1="536" x2="248" y2="528"/>
+<text class="muscle-label" x="78" y="281" text-anchor="end">GLUTE</text><line class="label-line" x1="80" y1="279" x2="91" y2="296"/>
+<text class="muscle-label" x="130" y="77" text-anchor="middle">TRAP</text><line class="label-line" x1="130" y1="79" x2="134" y2="90"/>
+</svg>`;
+
+const BACK_SVG=`<svg class="anatomy-svg" viewBox="0 0 300 620" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="150" cy="45" rx="28" ry="32" class="body-base"/>
+<rect x="138" y="74" width="24" height="22" rx="4" class="body-base"/>
+<path d="M105 96 Q88 100 80 115 L72 200 Q70 220 75 230 L90 280 L210 280 L225 230 Q230 220 228 200 L220 115 Q212 100 195 96 Z" class="body-base"/>
+<path d="M80 115 Q62 125 58 145 L48 230 Q46 250 52 265 L64 305 Q68 315 72 305 L78 265 Q84 248 82 232 L90 180 Z" class="body-base"/>
+<path d="M220 115 Q238 125 242 145 L252 230 Q254 250 248 265 L236 305 Q232 315 228 305 L222 265 Q216 248 218 232 L210 180 Z" class="body-base"/>
+<path d="M52 265 Q44 285 44 310 L46 355 Q47 365 54 368 L60 368 Q67 365 68 355 L70 310 Q72 290 66 265 Z" class="body-base"/>
+<path d="M248 265 Q256 285 256 310 L254 355 Q253 365 246 368 L240 368 Q233 365 232 355 L230 310 Q228 290 234 265 Z" class="body-base"/>
+<path d="M90 280 Q75 285 68 300 L66 332 Q68 345 82 348 L218 348 Q232 345 234 332 L232 300 Q225 285 210 280 Z" class="body-base"/>
+<path d="M80 345 Q65 355 60 380 L55 445 Q53 470 58 490 L70 510 Q77 520 83 510 L89 490 Q93 468 91 444 L96 380 Z" class="body-base"/>
+<path d="M220 345 Q235 355 240 380 L245 445 Q247 470 242 490 L230 510 Q223 520 217 510 L211 490 Q207 468 209 444 L204 380 Z" class="body-base"/>
+<path d="M58 490 Q50 510 50 538 L52 572 Q54 582 62 584 L70 584 Q78 582 80 572 L82 538 Q84 510 76 490 Z" class="body-base"/>
+<path d="M242 490 Q250 510 250 538 L248 572 Q246 582 238 584 L230 584 Q222 582 220 572 L218 538 Q216 510 224 490 Z" class="body-base"/>
+<g class="muscle-group" data-muscle="traps"><path d="M118 78 Q132 70 150 68 Q168 70 182 78 Q190 90 150 98 Q110 90 118 78 Z"/></g>
+<g class="muscle-group" data-muscle="back"><path d="M80 115 Q95 108 105 108 L105 130 Q112 142 104 160 L96 210 Q90 235 88 255 L82 280 Q74 270 77 245 L74 200 Z"/><path d="M220 115 Q205 108 195 108 L195 130 Q188 142 196 160 L204 210 Q210 235 212 255 L218 280 Q226 270 223 245 L226 200 Z"/><path d="M108 145 Q124 135 150 133 Q176 135 192 145 L188 160 Q172 152 150 150 Q128 152 112 160 Z" opacity="0.82"/><rect x="138" y="170" width="24" height="100" rx="10" opacity="0.8"/><path d="M140 170 Q150 160 160 170 L160 265 Q150 275 140 265 Z" opacity="0.55"/></g>
+<g class="muscle-group" data-muscle="shoulders"><ellipse cx="82" cy="115" rx="18" ry="22" transform="rotate(-10 82 115)"/><ellipse cx="218" cy="115" rx="18" ry="22" transform="rotate(10 218 115)"/></g>
+<g class="muscle-group" data-muscle="triceps"><path d="M58 140 Q52 158 50 180 L52 225 Q56 242 64 248 L70 228 Q72 205 72 182 L74 158 Z"/><path d="M242 140 Q248 158 250 180 L248 225 Q244 242 236 248 L230 228 Q228 205 228 182 L226 158 Z"/></g>
+<g class="muscle-group" data-muscle="biceps"><path d="M74 162 Q80 158 84 170 L86 215 Q82 232 78 235 L72 215 Q70 195 70 174 Z" opacity="0.6"/><path d="M226 162 Q220 158 216 170 L214 215 Q218 232 222 235 L228 215 Q230 195 230 174 Z" opacity="0.6"/></g>
+<g class="muscle-group" data-muscle="forearms"><path d="M46 268 Q40 285 40 308 L44 352 Q48 365 56 366 L62 366 Q70 363 71 352 L72 308 Q74 285 68 268 Z"/><path d="M254 268 Q260 285 260 308 L256 352 Q252 365 244 366 L238 366 Q230 363 229 352 L228 308 Q226 285 232 268 Z"/></g>
+<g class="muscle-group" data-muscle="glutes"><path d="M90 280 Q78 284 70 296 L66 330 Q68 346 84 348 L150 348 L150 292 Q130 287 110 284 Z"/><path d="M210 280 Q222 284 230 296 L234 330 Q232 346 216 348 L150 348 L150 292 Q170 287 190 284 Z"/></g>
+<g class="muscle-group" data-muscle="hamstrings"><path d="M68 348 Q56 360 52 382 L48 450 Q48 474 56 492 L70 510 Q78 518 85 510 L91 490 Q95 467 93 445 L95 382 Q86 357 76 348 Z"/><path d="M232 348 Q244 360 248 382 L252 450 Q252 474 244 492 L230 510 Q222 518 215 510 L209 490 Q205 467 207 445 L205 382 Q214 357 224 348 Z"/></g>
+<g class="muscle-group" data-muscle="calves"><path d="M52 494 Q44 514 44 542 L46 572 Q49 583 59 585 L67 585 Q77 583 79 572 L80 540 Q82 514 74 492 Z"/><path d="M248 494 Q256 514 256 542 L254 572 Q251 583 241 585 L233 585 Q223 583 221 572 L220 540 Q218 514 226 492 Z"/></g>
+<text class="muscle-label" x="150" y="80" text-anchor="middle">TRAPS</text><line class="label-line" x1="150" y1="82" x2="150" y2="89"/>
+<text class="muscle-label" x="87" y="148" text-anchor="end">LAT</text><line class="label-line" x1="89" y1="146" x2="100" y2="152"/>
+<text class="muscle-label" x="213" y="148" text-anchor="start">LAT</text><line class="label-line" x1="211" y1="146" x2="200" y2="152"/>
+<text class="muscle-label" x="150" y="220" text-anchor="middle">ERECTORS</text>
+<text class="muscle-label" x="35" y="182" text-anchor="end">TRICEP</text><line class="label-line" x1="37" y1="180" x2="54" y2="178"/>
+<text class="muscle-label" x="265" y="182" text-anchor="start">TRICEP</text><line class="label-line" x1="263" y1="180" x2="246" y2="178"/>
+<text class="muscle-label" x="101" y="313" text-anchor="middle">GLUTE</text><line class="label-line" x1="101" y1="315" x2="107" y2="320"/>
+<text class="muscle-label" x="33" y="430" text-anchor="end">HAMSTRING</text><line class="label-line" x1="35" y1="428" x2="56" y2="420"/>
+<text class="muscle-label" x="267" y="430" text-anchor="start">HAMSTRING</text><line class="label-line" x1="265" y1="428" x2="244" y2="420"/>
+<text class="muscle-label" x="33" y="538" text-anchor="end">CALF</text><line class="label-line" x1="35" y1="536" x2="52" y2="528"/>
+<text class="muscle-label" x="267" y="538" text-anchor="start">CALF</text><line class="label-line" x1="265" y1="536" x2="248" y2="528"/>
+<text class="muscle-label" x="32" y="310" text-anchor="end">FORE</text><text class="muscle-label" x="32" y="318" text-anchor="end">ARM</text><line class="label-line" x1="34" y1="308" x2="46" y2="304"/>
+</svg>`;
+
+const FRONT_FEMALE=`<svg class="anatomy-svg" viewBox="0 0 300 620" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="150" cy="43" rx="25" ry="30" class="body-base"/>
+<rect x="141" y="70" width="18" height="20" rx="4" class="body-base"/>
+<path d="M110 90 Q94 97 86 112 L80 185 Q78 205 82 218 Q86 238 88 262 L92 286 L208 286 L212 262 Q214 238 218 218 Q222 205 220 185 L214 112 Q206 97 190 90 Z" class="body-base"/>
+<ellipse cx="132" cy="140" rx="26" ry="22" class="body-base"/><ellipse cx="168" cy="140" rx="26" ry="22" class="body-base"/>
+<path d="M86 112 Q70 122 66 140 L56 225 Q54 244 60 258 L70 298 Q74 308 78 298 L82 258 Q88 242 86 228 L92 178 Z" class="body-base"/>
+<path d="M214 112 Q230 122 234 140 L244 225 Q246 244 240 258 L230 298 Q226 308 222 298 L218 258 Q212 242 214 228 L208 178 Z" class="body-base"/>
+<path d="M50 260 Q42 278 42 305 L44 348 Q46 360 54 362 L60 362 Q67 360 68 348 L69 305 Q70 278 64 260 Z" class="body-base"/>
+<path d="M250 260 Q258 278 258 305 L256 348 Q254 360 246 362 L240 362 Q233 360 232 348 L231 305 Q230 278 236 260 Z" class="body-base"/>
+<path d="M92 283 Q73 289 63 306 L59 340 Q61 356 77 359 L223 359 Q239 356 241 340 L237 306 Q227 289 208 283 Z" class="body-base"/>
+<path d="M72 355 Q58 367 54 390 L50 454 Q48 478 56 497 L68 515 Q76 523 83 515 L89 497 Q93 475 91 451 L97 390 Q88 367 80 355 Z" class="body-base"/>
+<path d="M228 355 Q242 367 246 390 L250 454 Q252 478 244 497 L232 515 Q224 523 217 515 L211 497 Q207 475 209 451 L203 390 Q212 367 220 355 Z" class="body-base"/>
+<path d="M56 497 Q48 517 48 543 L50 576 Q52 586 61 588 L68 588 Q77 586 79 576 L80 543 Q82 517 72 497 Z" class="body-base"/>
+<path d="M244 497 Q252 517 252 543 L250 576 Q248 586 239 588 L232 588 Q223 586 221 576 L220 543 Q218 517 228 497 Z" class="body-base"/>
+<g class="muscle-group" data-muscle="traps"><path d="M141 72 Q128 81 116 90 L110 100 Q122 94 141 92 Z" opacity="0.8"/><path d="M159 72 Q172 81 184 90 L190 100 Q178 94 159 92 Z" opacity="0.8"/></g>
+<g class="muscle-group" data-muscle="chest"><path d="M110 100 Q122 94 136 98 L140 128 Q140 138 132 142 L112 146 Q100 140 96 130 L95 115 Q99 104 110 100 Z"/><path d="M190 100 Q178 94 164 98 L160 128 Q160 138 168 142 L188 146 Q200 140 204 130 L205 115 Q201 104 190 100 Z"/><path d="M110 110 Q132 108 150 112 Q168 108 190 110 Q188 126 176 136 Q150 140 124 136 Q112 126 110 110 Z" opacity="0.8"/></g>
+<g class="muscle-group" data-muscle="shoulders"><ellipse cx="88" cy="108" rx="16" ry="20" transform="rotate(-15 88 108)"/><ellipse cx="212" cy="108" rx="16" ry="20" transform="rotate(15 212 108)"/></g>
+<g class="muscle-group" data-muscle="biceps"><path d="M64 142 Q58 160 58 180 L62 225 Q68 240 74 235 L78 198 Q82 177 80 156 Q74 138 64 142 Z"/><path d="M236 142 Q242 160 242 180 L238 225 Q232 240 226 235 L222 198 Q218 177 220 156 Q226 138 236 142 Z"/></g>
+<g class="muscle-group" data-muscle="triceps"><path d="M80 155 Q86 150 90 162 L92 210 Q88 230 82 232 L78 210 Q74 192 74 168 Z" opacity="0.7"/><path d="M220 155 Q214 150 210 162 L208 210 Q212 230 218 232 L222 210 Q226 192 226 168 Z" opacity="0.7"/></g>
+<g class="muscle-group" data-muscle="forearms"><path d="M50 262 Q44 280 44 305 L48 345 Q52 358 59 360 L64 360 Q72 358 73 345 L74 305 Q75 280 70 262 Z"/><path d="M250 262 Q256 280 256 305 L252 345 Q248 358 241 360 L236 360 Q228 358 227 345 L226 305 Q225 280 230 262 Z"/></g>
+<g class="muscle-group" data-muscle="abs"><rect x="131" y="160" width="38" height="19" rx="5"/><rect x="131" y="185" width="38" height="19" rx="5"/><rect x="131" y="210" width="38" height="17" rx="5"/><path d="M96 172 L131 180 L131 228 L102 241 Q94 231 92 218 Z" opacity="0.65"/><path d="M204 172 L169 180 L169 228 L198 241 Q206 231 208 218 Z" opacity="0.65"/></g>
+<g class="muscle-group" data-muscle="quads"><path d="M66 355 Q55 367 51 390 L47 454 Q46 478 54 496 L68 514 Q76 522 83 514 L89 496 Q93 474 91 451 L97 388 Q88 367 78 355 Z"/><path d="M234 355 Q245 367 249 390 L253 454 Q254 478 246 496 L232 514 Q224 522 217 514 L211 496 Q207 474 209 451 L203 388 Q212 367 222 355 Z"/></g>
+<g class="muscle-group" data-muscle="glutes"><path d="M92 284 Q79 290 69 304 L65 338 Q67 356 83 359 L128 359 Q120 336 119 312 Q117 296 107 288 Z" opacity="0.8"/><path d="M208 284 Q221 290 231 304 L235 338 Q233 356 217 359 L172 359 Q180 336 181 312 Q183 296 193 288 Z" opacity="0.8"/></g>
+<g class="muscle-group" data-muscle="calves"><path d="M50 498 Q44 518 44 544 L46 574 Q48 584 58 586 L66 586 Q74 584 77 574 L78 544 Q80 518 72 498 Z"/><path d="M250 498 Q256 518 256 544 L254 574 Q252 584 242 586 L234 586 Q226 584 223 574 L222 544 Q220 518 228 498 Z"/></g>
+<text class="muscle-label" x="150" y="121" text-anchor="middle">CHEST</text>
+<text class="muscle-label" x="88" y="95" text-anchor="middle">DELT</text>
+<text class="muscle-label" x="37" y="190" text-anchor="end">BICEP</text><line class="label-line" x1="39" y1="188" x2="62" y2="185"/>
+<text class="muscle-label" x="263" y="190" text-anchor="start">BICEP</text><line class="label-line" x1="261" y1="188" x2="238" y2="185"/>
+<text class="muscle-label" x="150" y="180" text-anchor="middle">ABS</text>
+<text class="muscle-label" x="32" y="306" text-anchor="end">FORE</text><text class="muscle-label" x="32" y="314" text-anchor="end">ARM</text><line class="label-line" x1="34" y1="304" x2="48" y2="300"/>
+<text class="muscle-label" x="33" y="432" text-anchor="end">QUAD</text><line class="label-line" x1="35" y1="430" x2="58" y2="422"/>
+<text class="muscle-label" x="267" y="432" text-anchor="start">QUAD</text><line class="label-line" x1="265" y1="430" x2="242" y2="422"/>
+<text class="muscle-label" x="33" y="540" text-anchor="end">CALF</text><line class="label-line" x1="35" y1="538" x2="52" y2="530"/>
+<text class="muscle-label" x="267" y="540" text-anchor="start">CALF</text><line class="label-line" x1="265" y1="538" x2="248" y2="530"/>
+<text class="muscle-label" x="78" y="284" text-anchor="end">GLUTE</text><line class="label-line" x1="80" y1="282" x2="93" y2="298"/>
+<text class="muscle-label" x="134" y="76" text-anchor="middle">TRAP</text><line class="label-line" x1="134" y1="78" x2="138" y2="88"/>
+</svg>`;
+
+// ── STATE ──────────────────────────────────────────────────
+let selectedMuscles=new Set(),currentGender='male',currentView='front',currentExType='bodyweight';
+
+// ── RENDER SVG ─────────────────────────────────────────────
+function renderSVG(){
+  const c=document.getElementById('svgContainer');
+  if(currentView==='front') c.innerHTML=currentGender==='male'?FRONT_MALE:FRONT_FEMALE;
+  else c.innerHTML=BACK_SVG;
+  document.querySelectorAll('.muscle-group').forEach(el=>{
+    const m=el.dataset.muscle;
+    el.addEventListener('click',()=>toggleMuscle(m));
+    el.addEventListener('mouseenter',e=>showTip(e,MUSCLE_NAMES[m]||m));
+    el.addEventListener('mousemove',e=>moveTip(e));
+    el.addEventListener('mouseleave',hideTip);
+  });
+  selectedMuscles.forEach(m=>{
+    document.querySelectorAll(`[data-muscle="${m}"]`).forEach(el=>el.classList.add('selected'));
+  });
+}
+
+// ── TOGGLE ─────────────────────────────────────────────────
+function toggleMuscle(m){
+  if(selectedMuscles.has(m)){
+    selectedMuscles.delete(m);
+    document.querySelectorAll(`[data-muscle="${m}"]`).forEach(el=>el.classList.remove('selected'));
+  }else{
+    selectedMuscles.add(m);
+    document.querySelectorAll(`[data-muscle="${m}"]`).forEach(el=>el.classList.add('selected'));
+  }
+  updateTags();renderExercises();
+}
+
+function updateTags(){
+  const a=document.getElementById('tagsArea');
+  a.innerHTML='';
+  selectedMuscles.forEach(m=>{
+    const d=document.createElement('div');
+    d.className='tag';
+    d.innerHTML=`${MUSCLE_NAMES[m]||m} <button onclick="toggleMuscle('${m}')">&#215;</button>`;
+    a.appendChild(d);
+  });
+  const n=selectedMuscles.size;
+  document.getElementById('selCount').textContent=n+' MUSCLE'+(n!==1?'S':'');
+}
+
+function clearAll(){
+  selectedMuscles.clear();
+  document.querySelectorAll('.muscle-group').forEach(el=>el.classList.remove('selected'));
+  updateTags();renderExercises();
+}
+
+// ── GENDER / VIEW / TYPE ───────────────────────────────────
+function setGender(g){
+  currentGender=g;
+  document.getElementById('btnMale').className='gender-btn'+(g==='male'?' am':'');
+  document.getElementById('btnFemale').className='gender-btn'+(g==='female'?' af':'');
+  renderSVG();
+}
+function setView(v){
+  currentView=v;
+  document.getElementById('btnFront').className='view-btn'+(v==='front'?' active':'');
+  document.getElementById('btnBack').className='view-btn'+(v==='back'?' active':'');
+  renderSVG();
+}
+function setExType(t){
+  currentExType=t;
+  document.getElementById('bwBtn').className='ex-type-btn'+(t==='bodyweight'?' active':'');
+  document.getElementById('gymBtn').className='ex-type-btn'+(t==='gym'?' active':'');
+  renderExercises();
+}
+
+// ── RENDER EXERCISES ───────────────────────────────────────
+function renderExercises(){
+  const empty=document.getElementById('emptyState');
+  const content=document.getElementById('exerciseContent');
+  const cards=document.getElementById('exerciseCards');
+  if(selectedMuscles.size===0){empty.style.display='flex';content.style.display='none';return;}
+  empty.style.display='none';content.style.display='block';
+  let all=[];
+  selectedMuscles.forEach(m=>{
+    const list=EX[m]&&EX[m][currentExType];
+    if(list)all.push(...list);
+  });
+  const seen=new Set();
+  all=all.filter(e=>{if(seen.has(e.name))return false;seen.add(e.name);return true;});
+  const muscleList=[...selectedMuscles].map(m=>MUSCLE_NAMES[m]).join(' + ');
+  const shortList=muscleList.length>38?muscleList.substring(0,38)+'…':muscleList;
+  document.getElementById('exTitle').innerHTML=`${shortList} <span style="font-size:0.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace;font-weight:400">EXERCISES</span>`;
+  cards.innerHTML='';
+  all.slice(0,6).forEach((ex,i)=>{
+    const card=buildCard(ex,i);
+    card.style.animationDelay=(i*0.06)+'s';
+    cards.appendChild(card);
+  });
+}
+
+function buildCard(ex,i){
+  const div=document.createElement('div');
+  div.className='ex-card';
+  const badge=currentExType==='bodyweight'
+    ?`<span class="ex-badge badge-bw">BODYWEIGHT</span>`
+    :`<span class="ex-badge badge-gym">GYM</span>`;
+  div.innerHTML=`
+    <div class="ex-card-header" onclick="toggleCard(this.parentElement)">
+      <div class="ex-num">0${i+1}</div>
+      <div class="ex-info">
+        <div class="ex-name">${ex.name}</div>
+        <div class="ex-meta">${badge}<span class="ex-badge badge-primary">${ex.primary}</span></div>
+      </div>
+      <span class="ex-chevron">&#9662;</span>
+    </div>
+    <div class="ex-detail">
+      <div class="ex-detail-inner">
+        <div class="sets-row">
+          <div class="sets-item"><div class="sets-label">Sets</div><div class="sets-val">${ex.sets}</div></div>
+          <div class="sets-item"><div class="sets-label">Reps</div><div class="sets-val">${ex.reps}</div></div>
+          <div class="sets-item"><div class="sets-label">Rest</div><div class="sets-val">${ex.rest}</div></div>
+        </div>
+        <div class="steps-grid">
+          ${ex.steps.map((s,si)=>`
+            <div class="step-card">
+              <div class="step-num">STEP ${si+1} — ${s.t.toUpperCase()}</div>
+              <div class="step-text">${s.b}</div>
+            </div>`).join('')}
+        </div>
+        <div class="muscles-hit">Muscles engaged: <span>${ex.muscles}</span></div>
+      </div>
+    </div>`;
+  return div;
+}
+
+function toggleCard(card){
+  if(card.classList.contains('open')){
+    card.classList.remove('open');
+  }else{
+    document.querySelectorAll('.ex-card.open').forEach(c=>c.classList.remove('open'));
+    card.classList.add('open');
+    setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
+  }
+}
+
+// ── TOOLTIP ───────────────────────────────────────────────
+const tip=document.getElementById('tooltip');
+function showTip(e,txt){tip.textContent=txt;tip.style.opacity='1';moveTip(e);}
+function moveTip(e){tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY-34)+'px';}
+function hideTip(){tip.style.opacity='0';}
+
+// ── INIT ──────────────────────────────────────────────────
+renderSVG();
+</script>
+</body>
+</html>
